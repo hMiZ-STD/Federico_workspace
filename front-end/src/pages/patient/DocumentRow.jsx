@@ -18,7 +18,7 @@ export default function DocumentRow({ row, statusChip, onView }) {
           {statusChip}
         </div>
         <span className="billing-row-date">
-          {new Date(safeRow.createdAt || Date.now()).toLocaleString('en-IN')}
+          {safeRow.createdAt ? new Date(safeRow.createdAt).toLocaleString('en-IN') : '—'}
         </span>
       </div>
       <div className="billing-row-meta">

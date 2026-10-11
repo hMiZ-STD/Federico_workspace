@@ -2,23 +2,19 @@
 
 import { api } from '../../api/index.js';
 import { useApi } from '../../hooks/useApi.js';
-import { useFa } from './FaContext.jsx';
-import { loadBillingOverview, loadLedgerEntries, ledgerTotal, formatCurrency } from './faHelpers.js';
-import { useSelectedRow } from './useSelectedRow.js';
+import { loadLedgerEntries, ledgerTotal, formatCurrency } from './faHelpers.js';
 import * as actions from './faActions.js';
-import PatientPicker from './PatientPicker.jsx';
-import ViewFrame from './ViewFrame.jsx';
 import * as S from './faStyles.js';
 
-export default function DischargeView() {
-  const ctx = useFa();
-
-  const { data, error, loading } = useApi(() => loadBillingOverview(), [ctx.version]);
-  const rows = data?.rows;
-  const { selectedId, row } = useSelectedRow(ctx, rows);
-
+/**
+ * Cashier & discharge settlement for the selected admission (formerly the
+ * Discharge view): waits for HOM's discharge approval, then shows the bill
+ * summary with the insurance deduction and the payment actions; once the
+ * ledger is PAID it offers the printed discharge summary. The discharge
+ * summary's final amount is derived server-side from the ledger entries.
+ */
+export default function SettlementSection({ ctx, row }) {
   const { data: extra } = useApi(async () => {
-    if (!row) return null;
     const entries = row.ledger ? await loadLedgerEntries(row.ledger.ledger_id) : [];
     let insurance = null;
     try {
@@ -28,72 +24,67 @@ export default function DischargeView() {
       insurance = null;
     }
     return { entries, insurance };
-  }, [ctx.version, row?.admission.admission_id, row?.ledger?.ledger_id]);
+  }, [ctx.version, row.admission.admission_id, row.ledger?.ledger_id]);
 
-  return (
-    <ViewFrame loading={loading} error={error}>
-      {data ? (
-        !row ? (
-          <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-            <h2>No patient selected for discharge.</h2>
+  if (!row.dischargeApproved) {
+    return (
+      <>
+        <h2 style={S.pageTitle}>
+          Final Discharge Summary |{' '}
+          <span style={{ color: 'var(--color-muted-fg)' }}>{row.patient.name || '-'}</span>
+        </h2>
+        <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
+          <h2 style={{ color: 'var(--color-fg)' }}>Awaiting HOM discharge approval</h2>
+          <p style={{ color: 'var(--color-muted-fg)' }}>
+            FA can finalize billing only after HOM approves this patient&apos;s discharge request.
+          </p>
+        </div>
+      </>
+    );
+  }
+
+  if (row.ledger && row.ledger.status === 'PAID') {
+    return (
+      <>
+        <h2 style={S.pageTitle}>
+          Final Discharge Summary |{' '}
+          <span style={{ color: 'var(--color-muted-fg)' }}>{row.patient.name || '-'}</span>
+        </h2>
+        <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
+          <h2 style={{ color: 'var(--color-accent)' }}>Payment Received</h2>
+          <p>
+            Billing is finalized.{' '}
+            <a
+              href="#fa-receipts"
+              style={{ color: 'var(--color-accent)' }}
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('fa-receipts')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              View Receipt
+            </a>
+          </p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px' }}>
+            <button
+              className="btn-primary"
+              style={{ padding: '12px 20px' }}
+              onClick={() => actions.printDischargeSummary(ctx, row.admission.admission_id, ctx.hospitalName)}
+            >
+              Print Discharge Summary
+            </button>
           </div>
-        ) : (
-          <>
-            <PatientPicker rows={rows} currentAdmissionId={selectedId} />
-            {!row.dischargeApproved ? (
-              <>
-                <h2 style={S.pageTitle}>
-                  Final Discharge Summary |{' '}
-                  <span style={{ color: 'var(--color-muted-fg)' }}>{row.patient.name || '-'}</span>
-                </h2>
-                <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-                  <h2 style={{ color: 'var(--color-fg)' }}>Awaiting HOM discharge approval</h2>
-                  <p style={{ color: 'var(--color-muted-fg)' }}>
-                    FA can finalize billing only after HOM approves this patient&apos;s discharge
-                    request.
-                  </p>
-                </div>
-              </>
-            ) : row.ledger && row.ledger.status === 'PAID' ? (
-              <>
-                <h2 style={S.pageTitle}>
-                  Final Discharge Summary |{' '}
-                  <span style={{ color: 'var(--color-muted-fg)' }}>{row.patient.name || '-'}</span>
-                </h2>
-                <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-                  <h2 style={{ color: 'var(--color-accent)' }}>Payment Received</h2>
-                  <p>
-                    Billing is finalized.{' '}
-                    <a href="#/receipts" style={{ color: 'var(--color-accent)' }}>
-                      View Receipt
-                    </a>
-                  </p>
-                  <div
-                    style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px' }}
-                  >
-                    <button
-                      className="btn-primary"
-                      style={{ padding: '12px 20px' }}
-                      onClick={() =>
-                        actions.printDischargeSummary(ctx, row.admission.admission_id, ctx.hospitalName)
-                      }
-                    >
-                      Print Discharge Summary
-                    </button>
-                  </div>
-                </div>
-              </>
-            ) : extra ? (
-              <Settlement ctx={ctx} row={row} entries={extra.entries} insurance={extra.insurance} />
-            ) : null}
-          </>
-        )
-      ) : null}
-    </ViewFrame>
-  );
+        </div>
+      </>
+    );
+  }
+
+  return extra ? <Settlement ctx={ctx} row={row} entries={extra.entries} insurance={extra.insurance} /> : null;
 }
 
 function Settlement({ ctx, row, entries, insurance }) {
+  // Read live at click time by the payment / summary actions (see D7 below).
+  const { coverageOverrideRef } = ctx;
   const grossTotal = ledgerTotal(entries);
   const coverageLimit = insurance ? Math.min(Number(insurance.coverage_limit || 0), grossTotal) : 0;
   const dispatched = Boolean(row.ledger) && row.ledger.status === 'DISPATCHED';
@@ -156,7 +147,7 @@ function Settlement({ ctx, row, entries, insurance }) {
             <input
               type="number"
               id="coverage-override"
-              ref={ctx.coverageOverrideRef}
+              ref={coverageOverrideRef}
               defaultValue={coverageLimit}
               min="0"
               max={grossTotal}
@@ -267,4 +258,3 @@ function Settlement({ ctx, row, entries, insurance }) {
     </>
   );
 }
-

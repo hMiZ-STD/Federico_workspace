@@ -1,21 +1,11 @@
 'use strict';
 
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router-dom';
 import App from './App.jsx';
 import RequireModule, { RequirePlatformUser } from './auth/RequireModule.jsx';
 
-/**
- * The route table from section 2.2 of react-migration-plan.md.
- *
- * Paths keep their legacy `.html` suffixes exactly (DEC-1), so every existing
- * link and bookmark still resolves and no URL in the app changes. The dev and
- * preview servers need the rewrite in vite.config.js for these to survive a
- * hard reload.
- *
- * Portal layouts are lazy so each portal's stylesheet lands in its own CSS
- * chunk and only one portal's CSS is live at a time (DEC-5).
- */
+
 
 const LandingPage = lazy(() => import('./pages/public/LandingPage.jsx'));
 const LoginPage = lazy(() => import('./pages/public/LoginPage.jsx'));
@@ -31,19 +21,13 @@ const HomDashboardPage = lazy(() => import('./pages/hom/DashboardPage.jsx'));
 const HomBedManagementPage = lazy(() => import('./pages/hom/BedManagementPage.jsx'));
 const HomPatientFlowPage = lazy(() => import('./pages/hom/PatientFlowPage.jsx'));
 const HomInventoryPage = lazy(() => import('./pages/hom/InventoryPage.jsx'));
-const HomBillingPage = lazy(() => import('./pages/hom/BillingPage.jsx'));
 
 const PreLayout = lazy(() => import('./pages/pre/PreLayout.jsx'));
 const PreDashboardPage = lazy(() => import('./pages/pre/PreDashboardPage.jsx'));
-const PreRequestsPage = lazy(() => import('./pages/pre/RequestsPage.jsx'));
-const PreRejectedPage = lazy(() => import('./pages/pre/RejectedPage.jsx'));
-const PreAdmittedPage = lazy(() => import('./pages/pre/AdmittedPage.jsx'));
-const PreDischargePage = lazy(() => import('./pages/pre/DischargePage.jsx'));
-const PreEmergencyPage = lazy(() => import('./pages/pre/EmergencyPage.jsx'));
+const PreIntakeHubPage = lazy(() => import('./pages/pre/IntakeHubPage.jsx'));
 const PrePatientRecordsPage = lazy(() => import('./pages/pre/PatientRecordsPage.jsx'));
 const PreDoctorRosterPage = lazy(() => import('./pages/pre/DoctorRosterPage.jsx'));
 const PreAppointmentPage = lazy(() => import('./pages/pre/AppointmentPage.jsx'));
-const PreHomCoordinationPage = lazy(() => import('./pages/pre/HomCoordinationPage.jsx'));
 
 const PatientLayout = lazy(() => import('./pages/patient/PatientLayout.jsx'));
 const PatientDashboardPage = lazy(() => import('./pages/patient/DashboardPage.jsx'));
@@ -57,11 +41,15 @@ const AdminLayout = lazy(() => import('./pages/admin/AdminLayout.jsx'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/DashboardPage.jsx'));
 const AdminDepartmentsPage = lazy(() => import('./pages/admin/DepartmentsPage.jsx'));
 const AdminInventoryCatalogPage = lazy(() => import('./pages/admin/InventoryCatalogPage.jsx'));
-const AdminRolesStaffPage = lazy(() => import('./pages/admin/RolesStaffPage.jsx'));
 const AdminPeoplePage = lazy(() => import('./pages/admin/PeoplePage.jsx'));
 
+/** Suspense fallback while a lazy page chunk loads (styles in ui-feedback.css). */
 function Loading() {
-  return null;
+  return (
+    <div className="route-loading" role="status" aria-live="polite">
+      <span className="route-loading-spinner" aria-label="Loading" />
+    </div>
+  );
 }
 
 /** Wraps a lazy element in the Suspense boundary every route needs. */
@@ -77,6 +65,12 @@ function guarded(moduleName, element) {
   );
 }
 
+/** A <Navigate> that carries the current ?query along (e.g. ?uhid=). */
+function RedirectKeepingQuery({ to }) {
+  const { search } = useLocation();
+  return <Navigate to={to + search} replace />;
+}
+
 function NotFound() {
   return (
     <main style={{ padding: 24 }}>
@@ -85,7 +79,7 @@ function NotFound() {
   );
 }
 
-export const router = createBrowserRouter([
+const router = createBrowserRouter([
   {
     element: <App />,
     children: [
@@ -121,9 +115,11 @@ export const router = createBrowserRouter([
           { path: '/HOM/screen-02-bed-management.html', element: L(<HomBedManagementPage />) },
           { path: '/HOM/screen-03-patient-flow.html', element: L(<HomPatientFlowPage />) },
           { path: '/HOM/screen-04-inventory.html', element: L(<HomInventoryPage />) },
-          { path: '/HOM/screen-05-billing.html', element: L(<HomBillingPage />) },
         ],
       },
+      // HOM billing moved to FA; old links land on Patient Flow, where each
+      // patient's detail modal has the read-only Billing Ledger tab.
+      { path: '/HOM/screen-05-billing.html', element: <RedirectKeepingQuery to="/HOM/screen-03-patient-flow.html" /> },
 
       // ---- PRE ----
       { path: '/PRE', element: <Navigate to="/PRE/pages/PRE.html" replace /> },
@@ -132,14 +128,15 @@ export const router = createBrowserRouter([
         element: guarded('PRE', <PreLayout />),
         children: [
           { path: '/PRE/pages/PRE.html', element: L(<PreDashboardPage />) },
-          { path: '/PRE/pages/request.html', element: L(<PreRequestsPage />) },
-          { path: '/PRE/pages/rejected.html', element: L(<PreRejectedPage />) },
-          { path: '/PRE/pages/admitted.html', element: L(<PreAdmittedPage />) },
-          { path: '/PRE/pages/discharge.html', element: L(<PreDischargePage />) },
-          { path: '/PRE/pages/emergency.html', element: L(<PreEmergencyPage />) },
+          // The Intake Hub's three tabs. The five legacy intake URLs all still
+          // resolve, each to the tab that now holds its table.
+          { path: '/PRE/pages/request.html', element: L(<PreIntakeHubPage tab="triage" />) },
+          { path: '/PRE/pages/admitted.html', element: L(<PreIntakeHubPage tab="tracking" />) },
+          { path: '/PRE/pages/hom.html', element: L(<PreIntakeHubPage tab="tracking" />) },
+          { path: '/PRE/pages/discharge.html', element: L(<PreIntakeHubPage tab="completed" />) },
+          { path: '/PRE/pages/rejected.html', element: L(<PreIntakeHubPage tab="completed" />) },
           { path: '/PRE/pages/patient-records.html', element: L(<PrePatientRecordsPage />) },
           { path: '/PRE/pages/doctor.html', element: L(<PreDoctorRosterPage />) },
-          { path: '/PRE/pages/hom.html', element: L(<PreHomCoordinationPage />) },
           // Both casings resolve (DEC-7). Every link in the app uses the
           // lowercase spelling; the file on disk was APPointment.html, so a
           // bookmark of either must keep working.
@@ -172,12 +169,21 @@ export const router = createBrowserRouter([
           { path: '/Admin/screen-01-dashboard.html', element: L(<AdminDashboardPage />) },
           { path: '/Admin/screen-02-departments.html', element: L(<AdminDepartmentsPage />) },
           { path: '/Admin/screen-03-inventory.html', element: L(<AdminInventoryCatalogPage />) },
-          { path: '/Admin/screen-04-admin.html', element: L(<AdminRolesStaffPage />) },
           { path: '/Admin/screen-05-people.html', element: L(<AdminPeoplePage />) },
         ],
       },
+      // The custom-RBAC screen was folded into People.
+      { path: '/Admin/screen-04-admin.html', element: <Navigate to="/Admin/screen-05-people.html" replace /> },
 
       { path: '*', element: <NotFound /> },
     ],
   },
 ]);
+
+/**
+ * The app's router, exported as a component so this module only exports
+ * components (keeps React Fast Refresh working for the route helpers above).
+ */
+export default function AppRouter() {
+  return <RouterProvider router={router} />;
+}

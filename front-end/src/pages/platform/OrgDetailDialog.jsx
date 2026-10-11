@@ -1,6 +1,5 @@
 'use strict';
 
-import { useState } from 'react';
 import Modal from '../../components/layout/Modal.jsx';
 import { statusChipClass, inr } from './platformHelpers.js';
 
@@ -8,14 +7,13 @@ import { statusChipClass, inr } from './platformHelpers.js';
  * Ported from platform-dashboard.js#openOrgDetail, which used a native
  * <dialog>.showModal().
  *
- * The legacy version re-bound its [data-detail-tab] click listeners on every
- * open, so they accumulated (defect D8). A controlled component cannot
- * reproduce that; the tab state is plain React state here. This is one of the
- * three accepted invisible fixes listed in section 7 of the migration plan.
+ * The legacy dialog also had Modules / API Keys / Provisioning Log tabs whose
+ * panels were never filled in; they are gone, and the enabled modules are
+ * listed in the summary instead.
  */
 export default function OrgDetailDialog({ org, onClose }) {
-  const [tab, setTab] = useState('summary');
   if (!org) return null;
+  const modules = org.enabled_modules || [];
 
   return (
     <Modal open onClose={onClose} className="platform-detail-overlay">
@@ -30,26 +28,7 @@ export default function OrgDetailDialog({ org, onClose }) {
             </button>
           </div>
 
-          <div className="md-tabs" role="tablist">
-            {[
-              ['summary', 'Summary'],
-              ['modules', 'Modules'],
-              ['keys', 'API Keys'],
-              ['log', 'Provisioning Log'],
-            ].map(([id, label]) => (
-              <button
-                key={id}
-                className={'md-tab' + (tab === id ? ' is-active' : '')}
-                data-detail-tab={id}
-                type="button"
-                onClick={() => setTab(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className={'detail-panel' + (tab === 'summary' ? '' : ' is-hidden')} id="detail-summary">
+          <div className="detail-panel" id="detail-summary">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: '0.9rem' }}>
               <div><strong>Tenant ID:</strong> <code>tenant_{org.organization_id}</code></div>
               <div>
@@ -63,18 +42,21 @@ export default function OrgDetailDialog({ org, onClose }) {
               <div><strong>Monthly Subscription Fee:</strong> {inr(org.subscription ? org.subscription.price_monthly : 0)}/mo</div>
               <div><strong>Payments Collected:</strong> {inr(org.revenue ? org.revenue.payments_collected : 0)}</div>
             </div>
+            <div style={{ marginTop: 16, fontSize: '0.9rem' }}>
+              <strong>Enabled Modules:</strong>
+              <div className="module-pill-list" style={{ marginTop: 8, maxWidth: 'none' }}>
+                {modules.length ? (
+                  modules.map((m) => (
+                    <span className="module-pill active" key={m}>{m}</span>
+                  ))
+                ) : (
+                  <span className="module-pill">None</span>
+                )}
+              </div>
+            </div>
           </div>
-
-          {/*
-            The legacy dialog left these three panels empty - openOrgDetail only
-            ever filled #detail-summary. Kept empty so nothing new appears.
-          */}
-          <div className={'detail-panel' + (tab === 'modules' ? '' : ' is-hidden')} id="detail-modules" />
-          <div className={'detail-panel' + (tab === 'keys' ? '' : ' is-hidden')} id="detail-keys" />
-          <div className={'detail-panel' + (tab === 'log' ? '' : ' is-hidden')} id="detail-log" />
         </div>
       </div>
     </Modal>
   );
 }
-

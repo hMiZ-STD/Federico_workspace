@@ -1,6 +1,5 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { RouterProvider } from 'react-router-dom';
 
 // The three stylesheets every legacy page loaded on every route. Portal-specific
 // stylesheets are imported by their own route chunk instead, so only one portal's
@@ -10,12 +9,12 @@ import './styles/material-components.css';
 import './styles/ui-feedback.css';
 
 import { SessionProvider } from './auth/SessionContext.jsx';
-import { router } from './routes.jsx';
+import AppRouter from './routes.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <SessionProvider>
-      <RouterProvider router={router} />
+      <AppRouter />
     </SessionProvider>
   </StrictMode>,
 );

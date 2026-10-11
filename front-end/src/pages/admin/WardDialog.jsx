@@ -1,22 +1,24 @@
 'use strict';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../../components/layout/Modal.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
 
 /** Ported from the #ward-dialog <dialog> in Admin/screen-02-departments.html. */
 export default function WardDialog({ open, ward, bedCount, onClose, onSaved }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [beds, setBeds] = useState('');
+  // Mounted only while open (and re-keyed per ward), so the fields always
+  // start from the ward being edited, or blank for a new one.
+  if (!open) return null;
+  return (
+    <WardForm key={ward ? ward.ward_id : 'new'} ward={ward} bedCount={bedCount} onClose={onClose} onSaved={onSaved} />
+  );
+}
 
-  useEffect(() => {
-    if (!open) return;
-    setName(ward ? ward.ward_name : '');
-    setDescription(ward ? ward.description || '' : '');
-    setBeds(ward ? String(bedCount) : '');
-  }, [open, ward, bedCount]);
+function WardForm({ ward, bedCount, onClose, onSaved }) {
+  const [name, setName] = useState(ward ? ward.ward_name : '');
+  const [description, setDescription] = useState(ward ? ward.description || '' : '');
+  const [beds, setBeds] = useState(ward ? String(bedCount) : '');
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -49,8 +51,6 @@ export default function WardDialog({ open, ward, bedCount, onClose, onSaved }) {
       toast(err.message || 'Could not save this ward.', 'error');
     }
   }
-
-  if (!open) return null;
 
   return (
     <Modal open onClose={onClose}>

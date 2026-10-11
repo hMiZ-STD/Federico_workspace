@@ -13,7 +13,12 @@ import { useEffect, useRef } from 'react';
  */
 export function usePolling(callback, intervalMs = 15000) {
   const savedRef = useRef(callback);
-  savedRef.current = callback;
+
+  // Keep the latest callback without restarting the timer. Updated in an
+  // effect, not during render, so render stays pure.
+  useEffect(() => {
+    savedRef.current = callback;
+  }, [callback]);
 
   useEffect(() => {
     const id = setInterval(() => {

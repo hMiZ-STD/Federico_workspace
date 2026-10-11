@@ -1,6 +1,6 @@
 'use strict';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../../components/layout/Modal.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
@@ -9,12 +9,14 @@ import { toast } from '../../components/feedback/feedback.js';
 const BLANK = { name: '', email: '', password: '', actor_role: 'HOM' };
 
 export default function StaffDialog({ open, onClose, onSaved }) {
+  // Mounted only while open, so every opening starts from a blank form.
+  if (!open) return null;
+  return <StaffForm onClose={onClose} onSaved={onSaved} />;
+}
+
+function StaffForm({ onClose, onSaved }) {
   const [f, setF] = useState(BLANK);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
-
-  useEffect(() => {
-    if (open) setF(BLANK);
-  }, [open]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -37,8 +39,6 @@ export default function StaffDialog({ open, onClose, onSaved }) {
       toast(err.message || 'Could not create this login.', 'error');
     }
   }
-
-  if (!open) return null;
 
   return (
     <Modal open onClose={onClose}>

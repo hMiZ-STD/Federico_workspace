@@ -1,6 +1,6 @@
 'use strict';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../../components/layout/Modal.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
@@ -15,27 +15,31 @@ import { toast } from '../../components/feedback/feedback.js';
 const BLANK = { name: '', specialization: '', department: '', phone: '', email: '' };
 
 export default function DoctorDialog({ open, doctor, wards, onClose, onSaved }) {
-  const [f, setF] = useState(BLANK);
+  // Mounted only while open (and re-keyed per doctor), so the fields always
+  // start from the doctor being edited, or blank for a new one.
+  if (!open) return null;
+  return (
+    <DoctorForm key={doctor ? doctor.doctor_id : 'new'} doctor={doctor} wards={wards} onClose={onClose} onSaved={onSaved} />
+  );
+}
+
+function DoctorForm({ doctor, wards, onClose, onSaved }) {
+  const [f, setF] = useState(() =>
+    doctor
+      ? {
+          name: doctor.name || '',
+          specialization: doctor.specialization || '',
+          department: doctor.department || '',
+          phone: doctor.phone || '',
+          email: doctor.email || '',
+        }
+      : BLANK,
+  );
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   const names = (wards || []).map((w) => w.ward_name);
   const current = doctor ? doctor.department || '' : '';
   const options = current && !names.includes(current) ? [current, ...names] : names;
-
-  useEffect(() => {
-    if (!open) return;
-    setF(
-      doctor
-        ? {
-            name: doctor.name || '',
-            specialization: doctor.specialization || '',
-            department: doctor.department || '',
-            phone: doctor.phone || '',
-            email: doctor.email || '',
-          }
-        : BLANK,
-    );
-  }, [open, doctor]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -61,8 +65,6 @@ export default function DoctorDialog({ open, doctor, wards, onClose, onSaved }) 
       toast(err.message || 'Could not save this doctor.', 'error');
     }
   }
-
-  if (!open) return null;
 
   return (
     <Modal open onClose={onClose}>

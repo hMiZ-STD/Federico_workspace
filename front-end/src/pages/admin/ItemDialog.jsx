@@ -1,6 +1,6 @@
 'use strict';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../../components/layout/Modal.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
@@ -9,12 +9,14 @@ import { toast } from '../../components/feedback/feedback.js';
 const BLANK = { item_name: '', category: 'Medicine', stock_quantity: '', reorder_level: '' };
 
 export default function ItemDialog({ open, onClose, onSaved }) {
+  // Mounted only while open, so every opening starts from a blank form.
+  if (!open) return null;
+  return <ItemForm onClose={onClose} onSaved={onSaved} />;
+}
+
+function ItemForm({ onClose, onSaved }) {
   const [f, setF] = useState(BLANK);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
-
-  useEffect(() => {
-    if (open) setF(BLANK);
-  }, [open]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -34,8 +36,6 @@ export default function ItemDialog({ open, onClose, onSaved }) {
       toast(err.message || 'Could not add this item.', 'error');
     }
   }
-
-  if (!open) return null;
 
   return (
     <Modal open onClose={onClose}>

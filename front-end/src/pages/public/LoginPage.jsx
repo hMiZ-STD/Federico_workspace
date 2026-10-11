@@ -15,6 +15,16 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 const ROLES = ['Patient', 'PRE', 'HOM', 'FA', 'Admin'];
 const REMEMBER_KEY = 'FedericoRememberMe';
 
+/** The Remember Me entry, or null when absent or corrupt (ignored as before). */
+function readRemembered() {
+  try {
+    const saved = localStorage.getItem(REMEMBER_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Ported from login/login-page.html + login-page.js.
  *
@@ -29,32 +39,20 @@ export default function LoginPage() {
   const { authenticate, getLastAuthError } = useSession();
   const preselectOrg = useSearchParam('org');
 
-  const [role, setRole] = useState('Patient');
+  // Remembered credentials seed the initial state directly.
+  const [remembered] = useState(readRemembered);
+  const [role, setRole] = useState(
+    () =>
+      ROLES.find((r) => r.toLowerCase() === String(remembered?.role || '').toLowerCase()) || 'Patient',
+  );
   const [organizations, setOrganizations] = useState(null); // null = loading
   const [orgLoadFailed, setOrgLoadFailed] = useState(false);
   const [orgId, setOrgId] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(remembered?.email || '');
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(false);
+  const [remember, setRemember] = useState(Boolean(remembered));
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  // Restore remembered credentials on first render.
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(REMEMBER_KEY);
-      if (!saved) return;
-      const data = JSON.parse(saved);
-      if (data.email) setEmail(data.email);
-      setRemember(true);
-      if (data.role) {
-        const match = ROLES.find((r) => r.toLowerCase() === String(data.role).toLowerCase());
-        if (match) setRole(match);
-      }
-    } catch {
-      /* corrupt entry; ignore exactly as before */
-    }
-  }, []);
 
   // Public organization list, with ?org= then the remembered org as preselection.
   useEffect(() => {

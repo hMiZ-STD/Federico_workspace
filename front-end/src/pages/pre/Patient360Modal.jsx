@@ -25,8 +25,9 @@ export default function Patient360Modal({ patient, doctorsById, bedsById, onClos
   if (!patient) return null;
 
   const seen = new Set();
-  const encounters = [...(patient.preRequests || []), ...(patient.appointments || [])].filter((enc) => {
-    const key = enc.appointment_id ? 'apt_' + enc.appointment_id : enc.pre_request_id ? 'pr_' + enc.pre_request_id : 'raw_' + Math.random();
+  const encounters = [...(patient.preRequests || []), ...(patient.appointments || [])].filter((enc, i) => {
+    // Encounters with neither id are never duplicates of anything.
+    const key = enc.appointment_id ? 'apt_' + enc.appointment_id : enc.pre_request_id ? 'pr_' + enc.pre_request_id : 'raw_' + i;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -87,7 +88,7 @@ export default function Patient360Modal({ patient, doctorsById, bedsById, onClos
               <table style={{ width: '100%', fontSize: 12, margin: 0 }}>
                 <thead>
                   <tr style={{ background: 'var(--md-surface-container-high, #f8fafc)' }}>
-                    <th>Date &amp; Time</th><th>Department</th><th>Doctor</th><th>Type</th><th>Status</th>
+                    <th>Date &amp; Time</th><th>Department</th><th>Doctor</th><th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -101,8 +102,7 @@ export default function Patient360Modal({ patient, doctorsById, bedsById, onClos
                         </td>
                         <td>{enc.department || (doc ? doc.specialization : 'General')}</td>
                         <td>{doc ? doc.name : 'Attending Specialist'}</td>
-                        <td>{enc.visit_type || 'Consultation'}</td>
-                        <td>{statusLabel(enc.status)}</td>
+                        <td>{enc.status === 'CONSULTATION_DONE' && enc.visit_type === 'Follow-Up' ? 'Follow Up' : statusLabel(enc.status)}</td>
                       </tr>
                     );
                   })}

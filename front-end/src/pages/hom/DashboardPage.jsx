@@ -9,21 +9,17 @@ import { useSession } from '../../auth/useSession.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { statusLabel, formatDateTime, joinPreRequestsWithPatients } from './homHelpers.js';
-import AdmissionRequestModal from './AdmissionRequestModal.jsx';
+import { toast } from '../../components/feedback/feedback.js';
+import AssignBedModal from './AssignBedModal.jsx';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import dashboardCss from '../../styles/hom/dashboard.css?inline';
 
 /**
  * Ported from HOM/screen-01-dashboard.html + dashboard.js.
  *
- * DEFECT D1 IS DELIBERATE AND MUST NOT BE "FIXED" HERE.
- * The legacy file called a bare `showMessage(...)` on four error paths; that
- * function is defined nowhere in the codebase, so every one of those paths
- * throws ReferenceError instead of telling the user anything. Constraint 1 of
- * react-migration-plan.md says to keep wrong behaviour wrong and flag it, and
- * DEC-6 records the decision. The obvious repair - route these to
- * feedback.toast(msg, 'error'), which is what every sibling HOM file does - is
- * queued as Phase 2 work in section 8 of the plan.
+ * The legacy file's error paths called an undefined `showMessage(...)`
+ * (defect D1), which threw ReferenceError instead of telling the user
+ * anything. They now toast, like every sibling HOM file.
  */
 
 function parseOperationalLog(log) {
@@ -63,9 +59,9 @@ function parseOperationalLog(log) {
     title = 'Inpatient admission confirmed for Pre-request #' + (meta.preRequestId || '');
     subtitle = 'Patient active under hospital ward care';
   } else if (/Emergency/i.test(text)) {
-    category = 'EMERGENCY ADMISSION';
+    category = 'ADMISSION';
     badgeVariant = 'error';
-    subtitle = 'High-priority emergency walk-in registered';
+    subtitle = 'High-priority walk-in registered';
   } else if (/denied/i.test(text)) {
     category = 'REQUEST DENIED';
     badgeVariant = 'error';
@@ -158,9 +154,7 @@ export default function HomDashboardPage() {
       try {
         await api.preRequests.update(preRequestId, { status: 'DISCHARGE_APPROVED' });
       } catch (err) {
-        // D1: `showMessage` is intentionally undefined - see the file header.
-        // eslint-disable-next-line no-undef
-        showMessage(err.message || 'Unable to approve discharge.');
+        toast(err.message || 'Unable to approve discharge.', 'error');
         return;
       }
       await reload();
@@ -332,7 +326,7 @@ export default function HomDashboardPage() {
         </div>
       </main>
 
-      <AdmissionRequestModal
+      <AssignBedModal
         bedRequestId={selectedBedRequestId}
         data={d}
         onClose={() => setSelectedBedRequestId(null)}

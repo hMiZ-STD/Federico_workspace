@@ -2,9 +2,10 @@
 
 const preRequestService = require('../services/preRequest.service');
 const billingService = require('../services/billing.service');
+const doctorService = require('../services/doctor.service');
 const dataStore = require('../store/dataStore');
 const { sendResult } = require('../utils/sendResult');
-const { forbidsOtherPatient } = require('../utils/patientOwnership');
+const { forbidsOtherPatient, isPatientSession } = require('../utils/patientOwnership');
 const { withTenant, scopeToOrg, belongsToOrg } = require('../utils/tenant');
 
 // PRE's final discharge sign-off (DISCHARGE_APPROVED -> DISCHARGED) is the
@@ -63,10 +64,32 @@ function create(req, res) {
   if (forbidsOtherPatient(req, req.body.patient_id)) {
     return res.status(403).json(FORBIDDEN);
   }
+  const payload = { ...req.body };
+  // A patient's booking always starts PENDING for PRE review — the body's
+  // `status` is not stripped by the validator, so drop it explicitly.
+  if (isPatientSession(req)) delete payload.status;
+
+  // PRE scheduling directly into APPROVED books the doctor's slot now, so it
+  // gets the same availability / double-booking check as an approval.
+  if (payload.status === 'APPROVED' && payload.doctor_id) {
+    const availability = doctorService.isDoctorAvailableAt(
+      payload.doctor_id,
+      payload.requested_date || payload.appointment_date,
+      payload.requested_time || payload.appointment_time,
+    );
+    if (!availability.available) {
+      return res.status(409).json({
+        message: availability.message,
+        error: 'Conflict',
+        statusCode: 409,
+      });
+    }
+  }
+
   const createdBy = req.session ? req.session.userId : null;
   sendResult(
     res,
-    preRequestService.create(withTenant(req, req.body), createdBy),
+    preRequestService.create(withTenant(req, payload), createdBy),
     201,
   );
 }
@@ -131,6 +154,25 @@ function update(req, res) {
       }
     }
 
+    if (requestedStatus === 'APPROVED') {
+      const doctorId = req.body.doctor_id || existing.doctor_id;
+      const requestedDate = req.body.requested_date || existing.requested_date;
+      const requestedTime = req.body.requested_time || existing.requested_time;
+      const availability = doctorService.isDoctorAvailableAt(
+        doctorId,
+        requestedDate,
+        requestedTime,
+        existing.appointment_id || null,
+      );
+      if (!availability.available) {
+        return res.status(409).json({
+          message: availability.message,
+          error: 'Conflict',
+          statusCode: 409,
+        });
+      }
+    }
+
     // Legacy x-role-only callers (no real session) bypass the per-actor
     // transition check, matching every other resource's SUPER_USER bypass.
     if (
@@ -171,7 +213,9 @@ function checkIn(req, res) {
   const existing = preRequestService.findOne(+req.params.id);
   if (!existing) return sendResult(res, null, 404);
 
-  if (!belongsToOrg(existing, req)) {
+  // Triage is a reception action: a Patient session (which has general
+  // preRequest write access for its own requests) may never check itself in.
+  if (!belongsToOrg(existing, req) || isPatientSession(req)) {
     return res.status(403).json(FORBIDDEN);
   }
 

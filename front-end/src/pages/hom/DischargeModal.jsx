@@ -11,7 +11,8 @@ import { daysSince, formatCurrency } from './homHelpers.js';
  * confirmDischarge in HOM/patient-flow.js.
  *
  * The total starts as "Calculating..." and is filled after the ledger fetch,
- * exactly as the original did - the modal opened first, then loaded.
+ * exactly as the original did - the modal opened first, then loaded. The
+ * parent keys this modal by row, so each opening starts from that state.
  */
 export default function DischargeModal({ row, onClose, onChanged }) {
   const [total, setTotal] = useState(null); // null = calculating
@@ -19,8 +20,6 @@ export default function DischargeModal({ row, onClose, onChanged }) {
 
   useEffect(() => {
     if (!row) return;
-    setTotal(null);
-    setError('');
     let cancelled = false;
 
     (async () => {

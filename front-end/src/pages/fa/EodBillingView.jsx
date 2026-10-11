@@ -7,15 +7,24 @@ import { useSelectedRow } from './useSelectedRow.js';
 import * as actions from './faActions.js';
 import PatientPicker from './PatientPicker.jsx';
 import ViewFrame from './ViewFrame.jsx';
+import { DischargeQueue } from './FaQueues.jsx';
+import SettlementSection from './SettlementSection.jsx';
+import ReceiptsSection from './ReceiptsSection.jsx';
 import * as S from './faStyles.js';
 
+const DETAIL_ID = 'fa-settlement-detail';
+
+/**
+ * EOD & Settlement: the cashier's view. The HOM discharge queue, then for the
+ * selected patient the EOD bill and the discharge settlement / payment, then
+ * the receipts register. (The former Discharge and Receipts views, and the
+ * Dashboard's discharge queue, live here now; #/discharge and #/receipts
+ * still route to this view.)
+ */
 export default function EodBillingView() {
   const ctx = useFa();
 
-  const { data, error, loading } = useApi(async () => {
-    const overview = await loadBillingOverview();
-    return overview;
-  }, [ctx.version]);
+  const { data, error, loading } = useApi(() => loadBillingOverview(), [ctx.version]);
 
   const rows = data?.rows;
   const { selectedId, row } = useSelectedRow(ctx, rows);
@@ -28,19 +37,31 @@ export default function EodBillingView() {
   return (
     <ViewFrame loading={loading} error={error}>
       {data ? (
-        !row ? (
-          <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-            <h2>No patient selected.</h2>
+        <>
+          <PatientPicker rows={rows} currentAdmissionId={selectedId} />
+          <DischargeQueue rows={rows} ctx={ctx} detailId={DETAIL_ID} />
+          <div id={DETAIL_ID}>
+            {!row ? (
+              <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
+                <h2>No patient selected.</h2>
+              </div>
+            ) : (
+              <>
+                <EodBill ctx={ctx} row={row} rows={rows} servicesById={data.servicesById} entries={entries || []} />
+                <div style={{ marginTop: '32px' }}>
+                  <SettlementSection ctx={ctx} row={row} />
+                </div>
+              </>
+            )}
           </div>
-        ) : (
-          <Body ctx={ctx} row={row} rows={rows} selectedId={selectedId} servicesById={data.servicesById} entries={entries || []} />
-        )
+          <ReceiptsSection ctx={ctx} patientsById={data.patientsById} />
+        </>
       ) : null}
     </ViewFrame>
   );
 }
 
-function Body({ ctx, row, rows, selectedId, servicesById, entries }) {
+function EodBill({ ctx, row, rows, servicesById, entries }) {
   const total = ledgerTotal(entries);
   const canDispatch = Boolean(row.ledger) && row.ledger.status !== 'PAID' && total > 0;
 
@@ -53,7 +74,6 @@ function Body({ ctx, row, rows, selectedId, servicesById, entries }) {
 
   return (
     <>
-      <PatientPicker rows={rows} currentAdmissionId={selectedId} />
       <h2 style={S.pageTitle}>
         EOD Billing | <span style={{ color: 'var(--color-muted-fg)' }}>{row.patient.name || '-'}</span>
       </h2>

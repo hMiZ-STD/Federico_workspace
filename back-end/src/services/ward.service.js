@@ -1,6 +1,7 @@
 'use strict';
 
 const dataStore = require('../store/dataStore');
+const { maxId } = require('../utils/maxId');
 const activityService = require('./activity.service');
 
 // WARD
@@ -26,9 +27,7 @@ function bedNumberPrefix(wardName) {
 function createWard(ward) {
   const newWard = {
     ward_id:
-      dataStore.wards.length > 0
-        ? Math.max(...dataStore.wards.map((w) => w.ward_id)) + 1
-        : 1,
+      maxId(dataStore.wards, 'ward_id') + 1 || 1,
     ward_name: ward.ward_name,
     description: ward.description || null,
     total_beds: Number(ward.total_beds) || 0,
@@ -135,9 +134,7 @@ function findBedsByWard(ward_id) {
 function createBed(bed) {
   const newBed = {
     bed_id:
-      dataStore.beds.length > 0
-        ? Math.max(...dataStore.beds.map((b) => b.bed_id)) + 1
-        : 11,
+      maxId(dataStore.beds, 'bed_id') + 1 || 11,
     ward_id: Number(bed.ward_id),
     bed_number: bed.bed_number,
     status: bed.status || 'AVAILABLE',
@@ -183,9 +180,7 @@ function createBedRequest(payload, requestedBy) {
 
   const newRequest = {
     bed_request_id:
-      dataStore.bedRequests.length > 0
-        ? Math.max(...dataStore.bedRequests.map((r) => r.bed_request_id)) + 1
-        : 1,
+      maxId(dataStore.bedRequests, 'bed_request_id') + 1 || 1,
     pre_request_id: preRequestId,
     patient_id: patientId,
     ward_id: payload.ward_id ? Number(payload.ward_id) : null,
@@ -213,12 +208,31 @@ function createBedRequest(payload, requestedBy) {
   return newRequest;
 }
 
+function conflict(message) {
+  const err = new Error(message);
+  err.name = 'Conflict';
+  err.statusCode = 409;
+  return err;
+}
+
+/**
+ * Allocating a bed (patch.bed_id) is refused with 409 when the target bed is
+ * already OCCUPIED — the original wrote OCCUPIED unconditionally, so a second
+ * allocation silently put two patients in one bed.
+ */
 function updateBedRequest(id, patch) {
   const request = dataStore.bedRequests.find((r) => r.bed_request_id === id);
   if (!request) return null;
 
   if (patch.bed_id) {
-    const bed = updateBedStatus(patch.bed_id, 'OCCUPIED');
+    if (request.status === 'ALLOCATED') {
+      throw conflict(`Bed request #${id} has already been allocated a bed`);
+    }
+    const target = dataStore.beds.find((b) => b.bed_id === Number(patch.bed_id));
+    if (target && target.status === 'OCCUPIED') {
+      throw conflict('Bed is already occupied');
+    }
+    const bed = updateBedStatus(Number(patch.bed_id), 'OCCUPIED');
     if (bed) {
       request.bed_id = Number(patch.bed_id);
       request.status = 'ALLOCATED';
@@ -239,6 +253,12 @@ function updateBedRequest(id, patch) {
       { bedRequestId: id },
       request.organization_id,
     );
+  } else if (patch.status === 'PENDING') {
+    // Compensating rollback from ward.controller.js when the admission
+    // cascade after an allocation fails: put the request back in the queue.
+    request.status = 'PENDING';
+    request.bed_id = null;
+    request.decided_at = null;
   }
 
   return request;

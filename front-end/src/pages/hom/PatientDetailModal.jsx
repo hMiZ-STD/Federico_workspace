@@ -11,16 +11,19 @@ import { statusLabel, statusVariant, daysSince, formatDate, formatCurrency } fro
  *
  * The ledger lookup is the same two-step the original did: find the patient's
  * billing bundle, then fetch that ledger's entries.
+ *
+ * The "Billing Ledger" tab is HOM's read-only view of a patient's charges;
+ * full accounting lives in the FA portal. The parent keys this modal by
+ * patient row, so each opening starts on `initialTab`.
  */
-export default function PatientDetailModal({ row, onClose, onOpenDischarge, onOpenBilling }) {
-  const [tab, setTab] = useState('overview');
+export default function PatientDetailModal({ row, initialTab = 'overview', onClose, onOpenDischarge }) {
+  const [tab, setTab] = useState(initialTab);
   const [billing, setBilling] = useState(null);
   const [entries, setEntries] = useState([]);
   const [servicesById, setServicesById] = useState({});
 
   useEffect(() => {
     if (!row) return;
-    setTab('overview');
     let cancelled = false;
 
     (async () => {
@@ -136,8 +139,8 @@ export default function PatientDetailModal({ row, onClose, onOpenDischarge, onOp
 
         <div className="modal-footer">
           <button className="btn btn-secondary btn-default" onClick={onClose}>Close</button>
-          <button className="btn btn-outline btn-default" data-flow="goto-billing" onClick={() => onOpenBilling(row.patientUhid)}>
-            View in Billing
+          <button className="btn btn-outline btn-default" data-flow="goto-billing" onClick={() => setTab('supply')}>
+            View Billing Ledger
           </button>
           {row.status === 'DISCHARGE_REQUESTED' ? (
             <button className="btn btn-primary btn-default" id="btn-pd-discharge" onClick={() => onOpenDischarge(row.pre_request_id)}>

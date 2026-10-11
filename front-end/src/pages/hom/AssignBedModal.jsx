@@ -1,21 +1,53 @@
 'use strict';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../../components/layout/Modal.jsx';
+import Badge from '../../components/ui/Badge.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
+import { formatDateTime } from './homHelpers.js';
 
-/** Ported from #modal-assign-bed plus openAssignModal / confirmBedAllocation in HOM/beds.js. */
-export default function AssignBedModal({ bedId, data, onClose, onChanged }) {
+/**
+ * The one bed-allocation modal. Both of HOM's allocation entry points pick a
+ * (pending bed request, available bed) pair, so they share this component:
+ *
+ *  - `bedId`        from Bed Management: the bed is fixed, choose which
+ *                   pending request it goes to (#modal-assign-bed in beds.js).
+ *  - `bedRequestId` from the Dashboard queue: the request is fixed, choose an
+ *                   available bed, or deny it (#modal-admission-request in
+ *                   dashboard.js - formerly AdmissionRequestModal.jsx).
+ *
+ * Allocation goes through PUT /ward/bed-requests/:id, which returns 409 if
+ * the bed was taken in the meantime; that message is shown to the user.
+ */
+export default function AssignBedModal({ bedId = null, bedRequestId = null, data, onClose, onChanged }) {
+  if (bedId !== null) {
+    return <BedFirst key={'bed-' + bedId} bedId={bedId} data={data} onClose={onClose} onChanged={onChanged} />;
+  }
+  if (bedRequestId !== null) {
+    return (
+      <RequestFirst key={'req-' + bedRequestId} bedRequestId={bedRequestId} data={data} onClose={onClose} onChanged={onChanged} />
+    );
+  }
+  return null;
+}
+
+function priorityVariant(priority) {
+  if (priority === 'CRITICAL' || priority === 'URGENT') return 'error';
+  if (priority === 'HIGH') return 'warning';
+  return 'info';
+}
+
+async function allocate(bedRequestId, bedId) {
+  await api.wards.bedRequests.allocate(bedRequestId, bedId);
+  toast('Bed allocated and patient admitted successfully.', 'success');
+}
+
+// ------------------------------------------------- bed -> pick a request --
+
+function BedFirst({ bedId, data, onClose, onChanged }) {
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    setSelectedRequestId(null);
-    setError('');
-  }, [bedId]);
-
-  if (bedId === null) return null;
 
   const bed = (data.beds || []).find((b) => b.bed_id === bedId);
   if (!bed) return null;
@@ -35,8 +67,7 @@ export default function AssignBedModal({ bedId, data, onClose, onChanged }) {
       return;
     }
     try {
-      await api.wards.bedRequests.allocate(selectedRequestId, bed.bed_id);
-      toast('Bed allocated and patient admitted successfully.', 'success');
+      await allocate(selectedRequestId, bed.bed_id);
     } catch (err) {
       setError(err.message || 'Unable to allocate this bed.');
       return;
@@ -108,3 +139,146 @@ export default function AssignBedModal({ bedId, data, onClose, onChanged }) {
   );
 }
 
+// ------------------------------------------------- request -> pick a bed --
+
+function RequestFirst({ bedRequestId, data, onClose, onChanged }) {
+  const [selectedBedId, setSelectedBedId] = useState(null);
+
+  const request = (data.bedRequests || []).find((r) => r.bed_request_id === bedRequestId);
+  if (!request) return null;
+
+  const patient = (data.patients || []).find((p) => p.patient_id === request.patient_id) || {};
+  const preRequest = request.pre_request_id
+    ? (data.preRequests || []).find((r) => r.pre_request_id === request.pre_request_id)
+    : null;
+  const ward = request.ward_id ? (data.wards || []).find((w) => w.ward_id === request.ward_id) : null;
+
+  const wardsById = {};
+  (data.wards || []).forEach((w) => (wardsById[w.ward_id] = w));
+
+  const availableBeds = (data.beds || []).filter(
+    (b) => b.status === 'AVAILABLE' && (!request.ward_id || b.ward_id === request.ward_id),
+  );
+
+  async function approve() {
+    if (!selectedBedId) {
+      toast('Select a bed before approving.', 'warning');
+      return;
+    }
+    try {
+      await allocate(bedRequestId, selectedBedId);
+    } catch (err) {
+      toast(err.message || 'Unable to allocate bed.', 'error');
+      // The bed list may be stale (409 = someone else took it); refresh it.
+      await onChanged();
+      return;
+    }
+    onClose();
+    await onChanged();
+  }
+
+  async function reject() {
+    try {
+      await api.wards.bedRequests.deny(bedRequestId);
+    } catch (err) {
+      toast(err.message || 'Unable to deny this bed request.', 'error');
+      return;
+    }
+    onClose();
+    await onChanged();
+  }
+
+  const field = (label, value) => (
+    <div>
+      <div className="label">{label}</div>
+      <div style={{ fontWeight: 500 }}>{value}</div>
+    </div>
+  );
+
+  return (
+    <Modal open onClose={onClose}>
+      <div className="modal-content">
+        <div className="modal-header">
+          <h2 className="h2" style={{ fontSize: 20 }} id="modal-admit-title">
+            Bed Request {'—'} {patient.name || 'Patient'}
+          </h2>
+          <button className="btn btn-outline btn-sm" style={{ border: 'none', padding: '4px 8px' }} onClick={onClose}>
+            {'✕'}
+          </button>
+        </div>
+
+        <div className="modal-body" style={{ gap: 24, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {field('Name', patient.name || '-')}
+            {field('UHID', patient.uhid || '-')}
+          </div>
+
+          <div style={{ background: 'var(--neutral-bg)', padding: 16, borderRadius: 'var(--radius-base)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div>
+              <div className="label">Department</div>
+              <div style={{ marginTop: 4 }}><Badge variant="info">{preRequest?.department || 'General'}</Badge></div>
+            </div>
+            <div>
+              <div className="label">Priority</div>
+              <div style={{ marginTop: 4 }}>
+                <Badge variant={priorityVariant(request.priority)}>{request.priority || 'NORMAL'}</Badge>
+              </div>
+            </div>
+            {field('Time Waiting', formatDateTime(request.requested_at))}
+            {field('Requested By', preRequest ? 'PRE' : 'HOM')}
+            <div>
+              <div className="label">Suggested Ward</div>
+              <div style={{ marginTop: 4 }}>
+                {ward ? <Badge variant="success">{ward.ward_name}</Badge> : <span style={{ color: 'var(--text-secondary)' }}>Any ward</span>}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="label" style={{ marginBottom: 12, fontSize: 14, textTransform: 'none' }}>Available Beds</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} id="modal-admit-beds">
+              {availableBeds.length === 0 ? (
+                <div style={{ padding: 16, border: '1px dashed var(--border)', borderRadius: 8, color: 'var(--text-secondary)' }}>
+                  No available beds for this request.
+                </div>
+              ) : (
+                availableBeds.map((bed) => (
+                  <button
+                    key={bed.bed_id}
+                    type="button"
+                    className="bed-option-btn"
+                    id={'bed-opt-' + bed.bed_id}
+                    onClick={() => setSelectedBedId(bed.bed_id)}
+                    style={{
+                      padding: 16,
+                      borderRadius: 8,
+                      border: '2px solid ' + (selectedBedId === bed.bed_id ? 'var(--primary)' : 'var(--border)'),
+                      background: selectedBedId === bed.bed_id ? 'var(--primary-light)' : 'white',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{bed.bed_number}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+                      {wardsById[bed.ward_id]?.ward_name || ''}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+          <button className="btn btn-secondary btn-default" onClick={onClose}>Cancel</button>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button className="btn btn-danger btn-default" data-flow="reject-request" onClick={reject}>Reject Request</button>
+            <button className="btn btn-primary btn-default" data-flow="approve-assign" id="btn-approve-admit" onClick={approve}>
+              Approve &amp; Assign Bed
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}

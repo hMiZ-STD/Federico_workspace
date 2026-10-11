@@ -2,19 +2,22 @@
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePatientStore } from './PatientStoreContext.jsx';
+import { usePatientStore } from './usePatientStore.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
 import DepartmentSelect from '../../components/forms/DepartmentSelect.jsx';
 import {
-  SLOT_BLOCKS,
   ALLOWED_UPLOAD_EXT,
   MAX_UPLOAD_BYTES,
+  DUTY_START,
+  DUTY_END,
+  DUTY_HOURS_LABEL,
+  TIME_WINDOWS,
+  windowFor,
+  dutyHoursError,
   formatSlotDate,
   normalizeSlotTime,
-  countBookedByTime,
-  slotState,
 } from './slotHelpers.js';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import patientBookAppointmentCss from '../../styles/patient/patient-book-appointment.css?inline';
@@ -24,20 +27,26 @@ const TODAY = new Date().toISOString().split('T')[0];
 const DEFAULT_ERRORS = {
   dept: 'Please select a department.',
   date: 'Please select a date.',
-  slot: 'Please select a time slot.',
+  time: 'Please select a preferred time.',
 };
 
+/**
+ * The booking form collects a preference - department, date, time and the
+ * reason for the visit - and submits it as a pending request. PRE reviews it,
+ * allocates an on-duty doctor and confirms the slot, so there is no per-slot
+ * capacity matrix here: the backend's availability check at confirmation is
+ * the single source of truth for whether a doctor is free.
+ */
 export default function BookAppointmentPage() {
   usePageStyles(patientBookAppointmentCss);
   useDocumentTitle('Book Appointment – Federico Cloud');
   const navigate = useNavigate();
-  const { profile, doctors, appointments, addAppointment } = usePatientStore();
+  const { profile, doctors, addAppointment } = usePatientStore();
 
-  // initDatePicker() seeds the date with today and calls updateSummary(), but
-  // deliberately not updateSlotMeta() - so the slot panel's caption keeps its
-  // markup default until the date or department actually changes.
+  // The time panel's caption keeps its default until the date or department
+  // actually changes.
   const [selectedDate, setSelectedDate] = useState(TODAY);
-  const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(''); // 24-hour "HH:MM" from <input type="time">
   const [selectedDept, setSelectedDept] = useState(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState(null);
   const [selectedDoctorName, setSelectedDoctorName] = useState('Any Specialist');
@@ -61,11 +70,6 @@ export default function BookAppointmentPage() {
     });
   }, [doctors, selectedDept]);
 
-  const counts = useMemo(
-    () => countBookedByTime(appointments, selectedDate, selectedDept, selectedDoctorId),
-    [appointments, selectedDate, selectedDept, selectedDoctorId],
-  );
-
   function onDepartmentChange(value) {
     setSelectedDept(value || null);
     setErrors((e) => ({ ...e, dept: undefined }));
@@ -88,8 +92,13 @@ export default function BookAppointmentPage() {
 
   function onDateChange(value) {
     setSelectedDate(value || null);
-    setErrors((e) => ({ ...e, date: undefined }));
+    setErrors((e) => ({ ...e, date: undefined, time: undefined }));
     setSlotMetaTouched(true);
+  }
+
+  function onTimeChange(value) {
+    setSelectedTime(value || '');
+    setErrors((e) => ({ ...e, time: undefined }));
   }
 
   function onFilesChange(event) {
@@ -132,7 +141,12 @@ export default function BookAppointmentPage() {
     const next = {};
     if (!selectedDept || selectedDept === 'none') next.dept = 'Please select a department.';
     if (!selectedDate) next.date = 'Please select a preferred date.';
-    if (!selectedTime) next.slot = 'Please select an available time slot.';
+    else if (selectedDate < TODAY) next.date = 'Please choose today or a future date.';
+    if (!selectedTime) next.time = 'Please select a preferred time.';
+    if (selectedDate && selectedTime && !next.date) {
+      const dutyError = dutyHoursError(selectedDate, selectedTime);
+      if (dutyError) next.time = dutyError;
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -167,7 +181,8 @@ export default function BookAppointmentPage() {
       const newRequestId = await addAppointment({
         date: selectedDate,
         displayDate: formatSlotDate(selectedDate),
-        time: selectedTime,
+        // Stored in the same "hh:mm AM" form PRE and the dashboards display.
+        time: normalizeSlotTime(selectedTime),
         department: selectedDept,
         doctorId: selectedDoctorId,
         type: 'Consultation',
@@ -239,7 +254,7 @@ export default function BookAppointmentPage() {
       <section className="page-heading">
         <h1>Book an Appointment</h1>
         <p>
-          Select your preferred department, date, and time slot. Our pre-registration team (PRE) will
+          Select your preferred department, date, and time. Our pre-registration team (PRE) will
           confirm your booking promptly.
         </p>
       </section>
@@ -306,53 +321,55 @@ export default function BookAppointmentPage() {
 
           <section className="panel">
             <div className="panel-head panel-head-between">
-              <h2>2. Choose Available Time Slot</h2>
+              <h2>2. Preferred Time</h2>
               <span className="panel-meta" id="slot-meta">
                 {slotMeta}
               </span>
             </div>
 
-            <div className="slots-wrapper">
-              {SLOT_BLOCKS.map((block) => (
-                <div className="slot-block" key={block.id}>
-                  <p className="slot-period">{block.period}</p>
-                  <div className="slots-grid" id={block.id}>
-                    {block.times.map((time) => {
-                      const state = slotState(time, counts, selectedDate, selectedDept);
-                      const isSelected =
-                        selectedTime &&
-                        normalizeSlotTime(selectedTime) === normalizeSlotTime(time) &&
-                        !state.disabled;
-                      return (
-                        <button
-                          key={time}
-                          className={'slot ' + state.className + (isSelected ? ' selected' : '')}
-                          type="button"
-                          data-time={time}
-                          disabled={state.disabled}
-                          onClick={() => {
-                            if (state.disabled) return;
-                            setSelectedTime(time);
-                            setErrors((e) => ({ ...e, slot: undefined }));
-                          }}
-                        >
-                          <strong>{time}</strong>
-                          <span>{state.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+            <div className="filter-grid">
+              <div className="form-group">
+                <label htmlFor="appointment-time">
+                  Preferred Time <span className="req">*</span>
+                </label>
+                <input
+                  id="appointment-time"
+                  type="time"
+                  min={DUTY_START}
+                  max={DUTY_END}
+                  step="900"
+                  value={selectedTime}
+                  onChange={(e) => onTimeChange(e.target.value)}
+                />
+                <span className={'field-error' + (errors.time ? '' : ' hidden')} id="error-time">
+                  {errors.time || DEFAULT_ERRORS.time}
+                </span>
+              </div>
 
-              <span
-                className={'field-error' + (errors.slot ? '' : ' hidden')}
-                id="error-slot"
-                style={{ marginTop: '14px' }}
-              >
-                {errors.slot || DEFAULT_ERRORS.slot}
-              </span>
+              <div className="form-group">
+                <label htmlFor="time-window">Time of Day</label>
+                <select
+                  id="time-window"
+                  value={selectedTime ? windowFor(selectedTime) : ''}
+                  onChange={(e) => {
+                    const win = TIME_WINDOWS.find((w) => w.id === e.target.value);
+                    if (win) onTimeChange(win.pick);
+                  }}
+                >
+                  <option value="">Any time</option>
+                  {TIME_WINDOWS.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+
+            <p className="panel-meta" style={{ margin: '0 0 20px' }}>
+              Doctors are on duty {DUTY_HOURS_LABEL}. Our reception team (PRE) will assign an
+              available doctor and confirm your exact time.
+            </p>
           </section>
 
           <section className="panel">
@@ -443,7 +460,7 @@ export default function BookAppointmentPage() {
               </div>
               <div className="label">Time</div>
               <div className="value" id="slot-time">
-                {selectedTime || '—'}
+                {selectedTime ? normalizeSlotTime(selectedTime) : '—'}
               </div>
               <div className="label">Department</div>
               <div className="value" id="slot-dept">

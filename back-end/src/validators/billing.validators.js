@@ -30,7 +30,10 @@ const createDischargeSummaryRules = [
   { field: 'admission_id', checks: ['isNotEmpty', 'isInt'] },
   { field: 'patient_id', checks: ['isNotEmpty', 'isInt'] },
   { field: 'discharge_notes', checks: ['isNotEmpty', 'isString'] },
-  { field: 'final_amount', checks: ['isNumber'] },
+  // final_amount is derived server-side from ledgerEntries; when sent, it
+  // only conveys the insurance deduction it implies (see billing.service).
+  { field: 'final_amount', checks: ['isNumber'], optional: true },
+  { field: 'insurance_deduction', checks: ['isNumber'], optional: true },
   { field: 'file_path', checks: ['isString'], optional: true },
 ];
 

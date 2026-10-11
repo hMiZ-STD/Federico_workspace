@@ -1,6 +1,6 @@
 'use strict';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../../components/layout/Modal.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
@@ -11,23 +11,20 @@ import { formatCurrency } from './homHelpers.js';
  * in HOM/billing.js.
  *
  * HOM stages the charge as a "leader"; FA approves it into the patient ledger.
+ * Opened from Patient Flow's "+ Post Service" button.
  */
 export default function PostServiceModal({ open, admissions, services, onClose, onChanged }) {
+  // Mounted only while open, so every opening starts from a blank form.
+  if (!open) return null;
+  return <PostServiceForm admissions={admissions} services={services} onClose={onClose} onChanged={onChanged} />;
+}
+
+function PostServiceForm({ admissions, services, onClose, onChanged }) {
   const [admissionId, setAdmissionId] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [qty, setQty] = useState('1');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setAdmissionId('');
-    setServiceId('');
-    setQty('1');
-    setError('');
-  }, [open]);
-
-  if (!open) return null;
 
   const service = services.find((s) => String(s.service_id) === String(serviceId));
   const unitPrice = service ? Number(service.base_cost || 0) : 0;

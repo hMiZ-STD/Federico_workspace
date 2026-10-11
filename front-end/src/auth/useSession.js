@@ -1,7 +1,7 @@
 'use strict';
 
 import { useContext } from 'react';
-import { SessionContext } from './SessionContext.jsx';
+import { SessionContext } from './contexts.js';
 
 export function useSession() {
   const ctx = useContext(SessionContext);

@@ -2676,6 +2676,34 @@
         }
       }
     },
+    "/rbac/staff/{userId}/actor-role": {
+      "put": {
+        "tags": [
+          "RBAC"
+        ],
+        "summary": "Change a staff user's portal role (HOM / PRE / FA)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
