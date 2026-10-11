@@ -245,6 +245,26 @@ function setStaffActive(userId, active) {
   };
 }
 
+/**
+ * Changes a staff account's portal role (HOM / PRE / FA). Returns
+ * { error: 'INVALID_ROLE' } for anything else — Admin is the provisioned org
+ * owner and Patient self-registers, so neither is assignable here.
+ */
+function setStaffRole(userId, actorRole) {
+  const role = String(actorRole || '').toUpperCase();
+  if (!CREATABLE_STAFF_ROLES.includes(role)) return { error: 'INVALID_ROLE' };
+  const user = dataStore.users.find((u) => u.user_id === Number(userId));
+  if (!user) return null;
+  user.role_id = ROLE_NAME_TO_ID[role];
+  return {
+    user_id: user.user_id,
+    name: user.name,
+    email: user.email,
+    actor_role: role,
+    is_active: user.is_active !== false,
+  };
+}
+
 module.exports = {
   ensurePermissionCatalog,
   listPermissions,
@@ -260,5 +280,6 @@ module.exports = {
   staffFor,
   createStaffUser,
   setStaffActive,
+  setStaffRole,
   CREATABLE_STAFF_ROLES,
 };

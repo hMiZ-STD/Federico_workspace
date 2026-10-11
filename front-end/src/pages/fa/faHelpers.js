@@ -104,3 +104,16 @@ export function ledgerTotal(entries) {
   return (entries || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
 }
 
+/**
+ * Selects an admission for the current view's detail section and scrolls that
+ * section into view. The queues and the detail now share a view, so picking a
+ * patient no longer switches views.
+ */
+export function selectAndReveal(ctx, route, admissionId, sectionId) {
+  ctx.setCurrentAdmissionId(admissionId);
+  ctx.navigate(route, admissionId);
+  requestAnimationFrame(() => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+

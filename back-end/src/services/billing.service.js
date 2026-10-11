@@ -246,11 +246,36 @@ function findReceiptsByPatient(patient_id) {
   return dataStore.receipts.filter((r) => r.patient_id === pid);
 }
 
-function findDischargeSummaryByAdmission(admission_id) {
-  return (
-    dataStore.dischargeSummaries.find((s) => s.admission_id === admission_id) ||
-    null
+/** Sum of every itemized ledgerEntries row for an admission's ledger. */
+function grossTotalForAdmission(admission_id) {
+  const ledger = findLedgerByAdmission(admission_id);
+  if (!ledger) return 0;
+  return findLedgerEntries(ledger.ledger_id).reduce(
+    (sum, e) => sum + Number(e.amount || 0),
+    0,
   );
+}
+
+/**
+ * Re-derives final_amount from the ledger's current line items minus the
+ * insurance deduction recorded when the summary was generated. The stored
+ * figure used to be whatever the client sent at generation time, so any
+ * charge approved afterwards left the summary (and the payment gate in
+ * createPayment, which trusts it) disagreeing with the ledger.
+ */
+function refreshFinalAmount(summary) {
+  const gross = grossTotalForAdmission(summary.admission_id);
+  const deduction = Math.min(Math.max(Number(summary.insurance_deduction) || 0, 0), gross);
+  summary.gross_amount = gross;
+  summary.final_amount = gross - deduction;
+  return summary;
+}
+
+function findDischargeSummaryByAdmission(admission_id) {
+  const summary =
+    dataStore.dischargeSummaries.find((s) => s.admission_id === admission_id) ||
+    null;
+  return summary ? refreshFinalAmount(summary) : null;
 }
 
 // DISCHARGE_SUMMARY
@@ -265,17 +290,30 @@ function createDischargeSummary(summary) {
     throw err;
   }
 
+  // The gross always comes from ledgerEntries. A caller-supplied
+  // final_amount is only used to infer the insurance deduction it implies
+  // (gross - final_amount); an explicit insurance_deduction wins.
+  const gross = grossTotalForAdmission(admissionId);
+  const requestedDeduction =
+    summary.insurance_deduction !== undefined
+      ? Number(summary.insurance_deduction)
+      : summary.final_amount !== undefined
+        ? gross - Number(summary.final_amount)
+        : 0;
+
   const newSummary = {
     summary_id:
       maxId(dataStore.dischargeSummaries, 'summary_id') + 1 || 1,
     admission_id: admissionId,
     patient_id: Number(summary.patient_id) || admission.patient_id,
     discharge_notes: summary.discharge_notes || 'Fit for discharge',
-    final_amount: Number(summary.final_amount) || 0,
+    insurance_deduction: Math.min(Math.max(requestedDeduction || 0, 0), gross),
+    final_amount: 0,
     generated_at: new Date().toISOString(),
     organization_id: summary.organization_id || admission.organization_id || null,
     hospital_id: summary.hospital_id || admission.hospital_id || null,
   };
+  refreshFinalAmount(newSummary);
   dataStore.dischargeSummaries.push(newSummary);
   return newSummary;
 }
@@ -413,6 +451,7 @@ module.exports = {
   findAllReceipts,
   findReceiptsByPatient,
   findDischargeSummaryByAdmission,
+  grossTotalForAdmission,
   findAllLeaders,
   findLeaderById,
   createLeader,

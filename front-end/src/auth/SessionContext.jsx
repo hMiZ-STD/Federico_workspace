@@ -1,12 +1,11 @@
 'use strict';
 
-import { createContext, useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { api } from '../api/index.js';
 import { subscribe, getSnapshot, setSession, clearSession } from '../api/session.js';
 import { getProfile, hasModuleAccess } from '../lib/roleProfiles.js';
 import { hasModule, resourceQty, getEntitlements } from '../lib/entitlements.js';
-
-export const SessionContext = createContext(null);
+import { SessionContext } from './contexts.js';
 
 /**
  * Replaces window.RoleAccess's session half. The store itself lives in

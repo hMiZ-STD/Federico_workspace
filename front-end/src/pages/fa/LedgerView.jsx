@@ -10,30 +10,36 @@ import { toast } from '../../components/feedback/feedback.js';
 import PatientPicker from './PatientPicker.jsx';
 import StatusBadge from './StatusBadge.jsx';
 import ViewFrame from './ViewFrame.jsx';
+import { LedgerQueues } from './FaQueues.jsx';
 import * as S from './faStyles.js';
 
+const DETAIL_ID = 'fa-ledger-detail';
+
+/**
+ * Running Ledgers: the FA landing view. The billing work queues (formerly the
+ * Dashboard view; #/dashboard still routes here), then the selected patient's
+ * running ledger with manual charge posting.
+ */
 export default function LedgerView() {
   const ctx = useFa();
   const [addService, setAddService] = useState('');
   const [addQty, setAddQty] = useState('1');
 
-  const { data, error, loading } = useApi(async () => {
-    const overview = await loadBillingOverview();
-    return overview;
-  }, [ctx.version]);
+  const { data, error, loading } = useApi(() => loadBillingOverview(), [ctx.version]);
 
   const rows = data?.rows;
   const { selectedId, row } = useSelectedRow(ctx, rows);
 
   return (
     <ViewFrame loading={loading} error={error}>
+      {data ? <LedgerQueues rows={rows} ctx={ctx} detailId={DETAIL_ID} /> : null}
       {data ? (
         !row ? (
-          <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
+          <div className="card" id={DETAIL_ID} style={{ padding: '40px', textAlign: 'center' }}>
             <h2>No patient selected.</h2>
           </div>
         ) : (
-          <>
+          <div id={DETAIL_ID}>
             <PatientPicker rows={rows} currentAdmissionId={selectedId} />
             {row.ledger ? (
               <LoadedLedger
@@ -74,7 +80,7 @@ export default function LedgerView() {
                 </div>
               </>
             )}
-          </>
+          </div>
         )
       ) : null}
     </ViewFrame>
@@ -154,7 +160,7 @@ function LoadedLedger({ ctx, row, servicesById, addService, setAddService, addQt
             onClick={() => {
               if (row.dischargeApproved) {
                 ctx.setCurrentAdmissionId(row.admission.admission_id);
-                ctx.navigate('#/discharge', row.admission.admission_id);
+                ctx.navigate('#/eod', row.admission.admission_id);
               } else {
                 toast('Waiting for HOM discharge approval for this patient.', 'warning');
               }

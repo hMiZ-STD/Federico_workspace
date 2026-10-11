@@ -110,15 +110,15 @@ export default function MarketplacePage() {
     }
   }, []);
 
-  const organizations = data || [];
-
+  // Keyed on `data` (stable between loads); a `data || []` local would be a
+  // fresh [] on every render until the first load lands.
   const filtered = useMemo(
     () =>
-      organizations.filter((org) => {
+      (data || []).filter((org) => {
         if (emergencyOnly && !org.emergency_available) return false;
         return matchesSearch(org, query.trim());
       }),
-    [organizations, query, emergencyOnly],
+    [data, query, emergencyOnly],
   );
 
   return (

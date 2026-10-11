@@ -208,12 +208,31 @@ function createBedRequest(payload, requestedBy) {
   return newRequest;
 }
 
+function conflict(message) {
+  const err = new Error(message);
+  err.name = 'Conflict';
+  err.statusCode = 409;
+  return err;
+}
+
+/**
+ * Allocating a bed (patch.bed_id) is refused with 409 when the target bed is
+ * already OCCUPIED — the original wrote OCCUPIED unconditionally, so a second
+ * allocation silently put two patients in one bed.
+ */
 function updateBedRequest(id, patch) {
   const request = dataStore.bedRequests.find((r) => r.bed_request_id === id);
   if (!request) return null;
 
   if (patch.bed_id) {
-    const bed = updateBedStatus(patch.bed_id, 'OCCUPIED');
+    if (request.status === 'ALLOCATED') {
+      throw conflict(`Bed request #${id} has already been allocated a bed`);
+    }
+    const target = dataStore.beds.find((b) => b.bed_id === Number(patch.bed_id));
+    if (target && target.status === 'OCCUPIED') {
+      throw conflict('Bed is already occupied');
+    }
+    const bed = updateBedStatus(Number(patch.bed_id), 'OCCUPIED');
     if (bed) {
       request.bed_id = Number(patch.bed_id);
       request.status = 'ALLOCATED';
@@ -234,6 +253,12 @@ function updateBedRequest(id, patch) {
       { bedRequestId: id },
       request.organization_id,
     );
+  } else if (patch.status === 'PENDING') {
+    // Compensating rollback from ward.controller.js when the admission
+    // cascade after an allocation fails: put the request back in the queue.
+    request.status = 'PENDING';
+    request.bed_id = null;
+    request.decided_at = null;
   }
 
   return request;

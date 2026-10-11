@@ -1,19 +1,12 @@
 'use strict';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/index.js';
 import { useSession } from '../../auth/useSession.js';
 import {
   buildProfile, buildAppointments, buildVisits, buildBillsAndDocuments, buildNotifications, indexBy,
 } from './patientStoreShape.js';
-
-const PatientStoreContext = createContext(null);
-
-export function usePatientStore() {
-  const ctx = useContext(PatientStoreContext);
-  if (!ctx) throw new Error('usePatientStore must be used inside <PatientLayout>');
-  return ctx;
-}
+import { PatientStoreContext } from './usePatientStore.js';
 
 const EMPTY = {
   patient: null,

@@ -315,6 +315,38 @@ body {
   justify-content: space-between;
 }
 
+/* Bed capacity bar (tenant cards + tenants table) */
+.bed-capacity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.bed-capacity-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--md-on-surface-variant, #49454f);
+}
+
+.bed-capacity-track {
+  height: 6px;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--md-surface-container-high, #ece6f0);
+  overflow: hidden;
+}
+
+.bed-capacity-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--md-primary, #6750a4);
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.bed-capacity-fill.is-high { background: var(--status-warning, #a5720a); }
+.bed-capacity-fill.is-full { background: var(--status-error, #b3261e); }
+
 /* Multi-Tenant Table */
 .org-table-card {
   background: var(--md-surface-container-lowest, #ffffff);

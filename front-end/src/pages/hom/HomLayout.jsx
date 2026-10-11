@@ -6,13 +6,17 @@ import { useSession } from '../../auth/useSession.js';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import globalCss from '../../styles/hom/global.css?inline';
 
-/** Ported from HOM/shared-nav.js. Same five links, same module gates. */
+/**
+ * Ported from HOM/shared-nav.js, same module gates. HOM's own Billing screen
+ * (screen-05) is gone: it duplicated the FA ledger with 15-second polling, and
+ * financial accounting belongs to Finance. HOM keeps a read-only Billing
+ * Ledger tab in the Patient Flow detail modal.
+ */
 const LINKS = [
   { href: '/HOM/screen-01-dashboard.html', label: 'Dashboard' },
   { href: '/HOM/screen-02-bed-management.html', label: 'Bed Management', module: 'ADMISSIONS' },
   { href: '/HOM/screen-03-patient-flow.html', label: 'Patient Flow', module: 'ADMISSIONS' },
   { href: '/HOM/screen-04-inventory.html', label: 'Inventory', module: 'INVENTORY' },
-  { href: '/HOM/screen-05-billing.html', label: 'Billing', module: 'BILLING' },
 ];
 
 export default function HomLayout() {

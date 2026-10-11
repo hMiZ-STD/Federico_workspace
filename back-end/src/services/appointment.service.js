@@ -2,6 +2,16 @@
 
 const dataStore = require('../store/dataStore');
 const { maxId } = require('../utils/maxId');
+const doctorService = require('./doctor.service');
+
+/** The booked date + time, from explicit fields or scheduled_datetime. */
+function appointmentSlot(appointment) {
+  const scheduled = String(appointment.scheduled_datetime || '');
+  return {
+    date: appointment.appointment_date || scheduled.slice(0, 10),
+    time: appointment.appointment_time || scheduled.slice(11, 16),
+  };
+}
 
 function findAll(predicate = null) {
   return predicate ? dataStore.appointments.filter(predicate) : dataStore.appointments;
@@ -24,6 +34,17 @@ function create(appointment) {
     if (!dataStore.doctors.find((d) => d.doctor_id === doctorId)) {
       const err = new Error(`Doctor #${appointment.doctor_id} not found`);
       err.statusCode = 404;
+      throw err;
+    }
+
+    // One doctor, one patient per slot: refuse an overlapping booking.
+    const { date, time } = appointmentSlot(appointment);
+    if (doctorService.findConflictingAppointment(doctorId, date, time)) {
+      const err = new Error(
+        'Doctor already has an appointment at this time. Please select another time slot.',
+      );
+      err.name = 'Conflict';
+      err.statusCode = 409;
       throw err;
     }
   }
@@ -69,4 +90,25 @@ function update(id, patch) {
   return appointment;
 }
 
-module.exports = { findAll, findOne, create, update };
+/**
+ * Boot-time repair (bootstrap.js): older appointments only carry the
+ * availability slot they were booked against, not the doctor, so doctor-level
+ * conflict checks never saw them. Resolves doctor_id through that slot.
+ * Idempotent; returns how many rows were filled in.
+ */
+function backfillDoctorIds() {
+  let filled = 0;
+  dataStore.appointments.forEach((appointment) => {
+    if (appointment.doctor_id || !appointment.availability_id) return;
+    const slot = dataStore.doctorAvailabilities.find(
+      (a) => a.availability_id === Number(appointment.availability_id),
+    );
+    if (slot && slot.doctor_id) {
+      appointment.doctor_id = Number(slot.doctor_id);
+      filled++;
+    }
+  });
+  return filled;
+}
+
+module.exports = { findAll, findOne, create, update, backfillDoctorIds };

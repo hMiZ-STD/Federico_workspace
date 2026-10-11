@@ -13,18 +13,40 @@ import { usePageStyles } from '../../hooks/usePageStyles.js';
 import platformCss from '../../styles/platform/platform.css?inline';
 
 /**
- * Ported from platform/platform-dashboard.html + platform-dashboard.js.
+ * Ported from platform/platform-dashboard.html + platform-dashboard.js, then
+ * streamlined into an executive dashboard: four KPI cards (MRR, active
+ * organizations, platform bed utilization, active patients), a tenant
+ * directory with bed-capacity bars, and the 3-field provisioning dialog.
  *
- * Both native <dialog>.showModal() calls become controlled components, and the
- * three tab panels become state. The data flow is unchanged: one
- * GET /platform/usage feeds the overview stats, the revenue breakdown, the
- * tenant cards and the tenants table.
+ * One GET /platform/usage feeds everything. (The legacy page called it twice
+ * per load, once for the stats and again for the tenants table.)
  */
 function Stat({ value, label, revenue }) {
   return (
     <div className={'stat-card' + (revenue ? ' revenue-card' : '')}>
       <div className="stat-value">{value}</div>
       <div className="stat-label">{label}</div>
+    </div>
+  );
+}
+
+function bedUtilization(occupied, total) {
+  return total > 0 ? Math.round((occupied / total) * 100) : 0;
+}
+
+/** Occupied / total beds as a progress bar, amber from 75% and red from 90%. */
+function BedCapacityBar({ occupied, total }) {
+  const pct = bedUtilization(occupied, total);
+  const level = pct >= 90 ? ' is-full' : pct >= 75 ? ' is-high' : '';
+  return (
+    <div className="bed-capacity" title={occupied + ' of ' + total + ' beds occupied'}>
+      <div className="bed-capacity-label">
+        <span>{occupied} / {total} beds</span>
+        <strong>{pct}%</strong>
+      </div>
+      <div className="bed-capacity-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+        <div className={'bed-capacity-fill' + level} style={{ width: pct + '%' }} />
+      </div>
     </div>
   );
 }
@@ -40,75 +62,24 @@ function OverviewTab({ usage, orgs, activity, onOpenOrg }) {
     );
   }
 
-  // The backend moved from per-plan to per-service revenue; the legacy file
-  // rendered whichever it got, so both branches are kept.
-  const byService = usage.revenue_by_service;
-  const byPlan = usage.revenue_by_plan;
+  const totalBeds = orgs.reduce((sum, o) => sum + (Number(o.beds) || 0), 0);
+  const occupiedBeds = orgs.reduce((sum, o) => sum + (Number(o.beds_occupied) || 0), 0);
 
   return (
     <>
       <div className="stat-grid" id="platform-stats">
-        <Stat revenue value={inr(usage.total_mrr)} label="Total MRR (Monthly Income)" />
-        <Stat revenue value={inr(usage.total_arr)} label="Annual Run Rate (ARR)" />
-        <Stat revenue value={inr(usage.total_payments_collected)} label="Payments Collected (All Tenants)" />
-        <Stat value={usage.total_organizations || 0} label="Total Organizations" />
-        <Stat value={usage.active_organizations || 0} label="Active Tenants" />
-        <Stat value={usage.total_hospitals || 0} label="Hospital Branches" />
-        <Stat value={usage.total_patients || 0} label="Registered Patients" />
-        <Stat value={usage.total_active_admissions || 0} label="Active Inpatients (Platform-wide)" />
-        <Stat value={usage.total_users || 0} label="Staff & User Accounts" />
+        <Stat revenue value={inr(usage.total_mrr)} label="Monthly Recurring Revenue (MRR)" />
+        <Stat value={(usage.active_organizations || 0) + ' / ' + (usage.total_organizations || 0)} label="Active Organizations" />
+        <Stat value={bedUtilization(occupiedBeds, totalBeds) + '%'} label={'Bed Utilization (' + occupiedBeds + ' / ' + totalBeds + ')'} />
+        <Stat value={usage.total_active_admissions || 0} label="Active Patients" />
       </div>
 
-      <h2 className="section-heading">Platform Revenue by Service &amp; Usage</h2>
-      <div className="plan-rev-grid" id="plan-revenue-grid">
-        {byService && Object.keys(byService).length ? (
-          Object.keys(byService).map((code) => {
-            const d = byService[code];
-            return (
-              <div className="plan-rev-card" key={code}>
-                <div className="plan-rev-title">
-                  <span>{d.name || code}</span>
-                  <span className="md-chip md-chip-tonal">{inr(d.price_monthly)}/mo</span>
-                </div>
-                <div className="plan-rev-amount">
-                  {inr(d.total_income)}
-                  <span style={{ fontSize: '0.8rem', fontWeight: 400, color: 'var(--md-on-surface-variant)' }}> /mo</span>
-                </div>
-                <div className="plan-rev-sub">{d.active_instances || 0} branch instance(s) running</div>
-              </div>
-            );
-          })
-        ) : byPlan && Object.keys(byPlan).length ? (
-          Object.keys(byPlan).map((name) => {
-            const d = byPlan[name];
-            return (
-              <div className="plan-rev-card" key={name}>
-                <div className="plan-rev-title">
-                  <span>{name}</span>
-                  <span className="md-chip md-chip-tonal">{inr(d.price_monthly)}/mo</span>
-                </div>
-                <div className="plan-rev-amount">
-                  {inr(d.total_income)}
-                  <span style={{ fontSize: '0.8rem', fontWeight: 400, color: 'var(--md-on-surface-variant)' }}> /mo</span>
-                </div>
-                <div className="plan-rev-sub">{d.active_subscriptions || 0} active tenant(s)</div>
-              </div>
-            );
-          })
-        ) : (
-          <div className="md-empty-state"><span>No active service revenue lines yet.</span></div>
-        )}
-      </div>
-
-      <h2 className="section-heading">Active Hospital Tenants at a Glance</h2>
+      <h2 className="section-heading">Hospital Tenant Directory</h2>
       <div className="org-mini-grid" id="overview-org-list">
         {orgs.length === 0 ? (
           <div className="md-empty-state"><span>No organizations yet.</span></div>
         ) : (
           orgs.map((org) => {
-            const pf = org.patient_flow || {};
-            const rev = org.revenue || {};
-            const planName = org.subscription ? org.subscription.plan_name : 'Pay-As-You-Scale';
             const monthlyFee = org.subscription ? inr(org.subscription.price_monthly) + '/mo' : '—';
             return (
               <div
@@ -124,24 +95,15 @@ function OverviewTab({ usage, orgs, activity, onOpenOrg }) {
                     <span className={'md-chip ' + statusChipClass(org.status)}>{org.status}</span>
                   </div>
                 </div>
-                <div className="org-mini-meta">Plan: <strong>{planName}</strong> ({monthlyFee})</div>
-                <div className="org-mini-meta" style={{ marginTop: 4 }}>
-                  {org.hospitals} branch(es) {'·'} {org.users} users {'·'} {org.patients} patients {'·'} {org.beds_occupied}/{org.beds} beds
+                <div className="org-mini-meta">
+                  {org.hospitals} branch(es) {'·'} {org.users} users {'·'} {org.patients} patients
                 </div>
-                <div className="org-mini-meta" style={{ marginTop: 4 }}>
-                  Clinical Flow: {pf.admitted || 0} admitted {'·'} {pf.discharge_in_progress || 0} in discharge {'·'} {pf.pre_requests_pending || 0} pending
+                <div style={{ marginTop: 12 }}>
+                  <BedCapacityBar occupied={org.beds_occupied || 0} total={org.beds || 0} />
                 </div>
-                <div className="org-mini-meta" style={{ marginTop: 4 }}>
-                  Collections: <strong>{inr(rev.payments_collected)}</strong> {'·'} {rev.open_ledgers || 0} open / {rev.paid_ledgers || 0} settled ledgers
-                </div>
-                <div className="module-pill-list" style={{ marginTop: 8 }}>
-                  {(org.enabled_modules || []).length ? (
-                    (org.enabled_modules || []).map((m) => (
-                      <span className="module-pill active" key={m}>{m}</span>
-                    ))
-                  ) : (
-                    <span className="module-pill">All Core Modules</span>
-                  )}
+                <div className="org-mini-revenue">
+                  <span>Subscription</span>
+                  <span>{monthlyFee}</span>
                 </div>
               </div>
             );
@@ -200,30 +162,24 @@ function OrganizationsTab({ orgs, onOpenOrg, onToggleStatus }) {
         <table className="md-table" id="org-table">
           <thead>
             <tr>
-              <th>Organization</th><th>Tenant ID</th><th>Status</th><th>Billing Model</th>
-              <th>Monthly Fee</th><th>Subscribed Modules</th><th>Branches</th><th>Users</th>
-              <th>Beds</th><th>Clinical Flow</th><th>Actions</th>
+              <th>Organization</th><th>Status</th><th>Monthly Fee</th>
+              <th>Branches</th><th>Users</th><th>Bed Capacity</th><th>Actions</th>
             </tr>
           </thead>
           <tbody id="org-table-body">
             {orgs.length === 0 ? (
-              <tr><td colSpan="11" className="empty-cell">No organizations found.</td></tr>
+              <tr><td colSpan="7" className="empty-cell">No organizations found.</td></tr>
             ) : (
               orgs.map((org) => {
-                const pf = org.patient_flow || {};
                 const isSuspended = org.status === 'SUSPENDED';
                 return (
                   <tr key={org.organization_id}>
                     <td><strong>{org.name}</strong></td>
-                    <td><code>tenant_{org.organization_id}</code></td>
                     <td><span className={'md-chip ' + statusChipClass(org.status)}>{org.status}</span></td>
-                    <td>{org.subscription ? org.subscription.plan_name : 'Pay-As-You-Scale'}</td>
                     <td><strong>{org.subscription ? inr(org.subscription.price_monthly) : '—'}</strong></td>
-                    <td>{(org.enabled_modules || []).length} modules</td>
                     <td>{org.hospitals}</td>
                     <td>{org.users}</td>
-                    <td>{org.beds_occupied} / {org.beds}</td>
-                    <td>{pf.admitted || 0} inpatients {'·'} {pf.appointments || 0} appts</td>
+                    <td><BedCapacityBar occupied={org.beds_occupied || 0} total={org.beds || 0} /></td>
                     <td className="table-actions">
                       <button
                         className="md-btn md-btn-outlined md-btn-sm"
@@ -356,32 +312,16 @@ export default function PlatformDashboardPage() {
     RATE_FIELDS.reduce((acc, [, key, , fallback]) => ({ ...acc, [key]: fallback }), {}),
   );
 
-  /**
-   * platform-dashboard.js had two loaders that both called platform.usage():
-   * loadOverview() for the stats panel and loadOrganizationsTable() for the
-   * table. They are kept separate because they report different failures -
-   * merging them would silently drop the "Could not load organizations."
-   * message the Organizations tab shows.
-   */
+  /** The one usage load: KPI cards, tenant directory and tenants table. */
   const loadUsage = useCallback(async () => {
     try {
       const data = await api.platform.usage();
       setUsage(data);
+      setOrgs(data.organizations || []);
       return data;
     } catch (err) {
       setUsage(false);
       toast(err.message || 'Could not load platform usage.', 'error');
-      return null;
-    }
-  }, []);
-
-  const loadOrgs = useCallback(async () => {
-    try {
-      const data = await api.platform.usage();
-      setOrgs(data.organizations || []);
-      return data;
-    } catch (err) {
-      toast(err.message || 'Could not load organizations.', 'error');
       return null;
     }
   }, []);
@@ -417,11 +357,10 @@ export default function PlatformDashboardPage() {
   useEffect(() => {
     (async () => {
       await loadUsage();
-      await loadOrgs();
       await loadActivity();
       await loadRates();
     })();
-  }, [loadUsage, loadOrgs, loadActivity, loadRates]);
+  }, [loadUsage, loadActivity, loadRates]);
 
   async function toggleOrgStatus(id, action) {
     try {
@@ -429,7 +368,6 @@ export default function PlatformDashboardPage() {
       else await api.platform.organizations.activate(id);
       toast('Organization status updated.', 'success');
       await loadUsage();
-      await loadOrgs();
     } catch (err) {
       toast(err.message || 'Failed to update status.', 'error');
     }
@@ -524,10 +462,7 @@ export default function PlatformDashboardPage() {
       <ProvisionDialog
         open={provisionOpen}
         onClose={() => setProvisionOpen(false)}
-        onProvisioned={async () => {
-          await loadUsage();
-          await loadOrgs();
-        }}
+        onProvisioned={loadUsage}
       />
       <OrgDetailDialog org={detailOrg} onClose={() => setDetailOrgId(null)} />
     </>

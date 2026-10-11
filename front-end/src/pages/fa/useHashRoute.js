@@ -4,26 +4,37 @@ import { useCallback, useEffect, useState } from 'react';
 
 /**
  * Replaces FA/js/router.js. The FA portal is the one page in the app that was
- * already a SPA, and its six views live at `fa-dashboard.html#/dashboard` …
- * `#/receipts`, with an optional admission id as a third segment
- * (`#/ledger/42`). DEC-2 keeps those URLs exactly, so this is a hash listener
- * rather than a nested router - a HashRouter inside the BrowserRouter would
- * fight over `location`.
+ * already a SPA; its views live at `fa-dashboard.html#/ledger`, `#/charges`
+ * and `#/eod`, with an optional admission id as a third segment
+ * (`#/ledger/42`). This is a hash listener rather than a nested router - a
+ * HashRouter inside the BrowserRouter would fight over `location`.
+ *
+ * The portal had six views; three were folded into the others, and their
+ * hashes still resolve (admission id included) through ROUTE_ALIASES.
  */
+export const DEFAULT_ROUTE = '#/ledger';
+
+const ROUTE_ALIASES = {
+  '#/dashboard': '#/ledger', // work queues now head the Ledger view
+  '#/discharge': '#/eod', // settlement is part of EOD & Settlement
+  '#/receipts': '#/eod', // so is the receipts register
+};
+
 export function parseHashRoute(rawHashInput) {
-  const rawHash = rawHashInput || '#/dashboard';
+  const rawHash = rawHashInput || DEFAULT_ROUTE;
   const parts = rawHash.split('/');
-  const mainRoute = parts.slice(0, 2).join('/');
+  const route = parts.slice(0, 2).join('/');
+  const mainRoute = ROUTE_ALIASES[route] || route;
   const param = parts[2] ? Number(parts[2].split('?')[0]) : null;
   return { rawHash, mainRoute, param };
 }
 
 export function useHashRoute() {
-  const [hash, setHash] = useState(() => window.location.hash || '#/dashboard');
+  const [hash, setHash] = useState(() => window.location.hash || DEFAULT_ROUTE);
 
   useEffect(() => {
     function onHashChange() {
-      setHash(window.location.hash || '#/dashboard');
+      setHash(window.location.hash || DEFAULT_ROUTE);
     }
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);

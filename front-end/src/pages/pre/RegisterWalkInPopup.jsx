@@ -8,83 +8,61 @@ import { toast } from '../../components/feedback/feedback.js';
 /**
  * Ported from #patientPopup plus registerPatient in PRE/js/Appointment.js.
  *
- * The name and age fields rewrite themselves as you type - anything outside
- * [A-Za-z .'-] or [0-9] is stripped and a toast fires. That is aggressive, but
- * it is what the original did, so it is preserved.
+ * Fields accept whatever is typed and are validated once, on submit. (The
+ * original rewrote the name and age fields on every keystroke and fired an
+ * error toast each time a character was stripped.)
  */
 const BLANK = { name: '', age: '', gender: '', phone: '', address: '' };
 
 const isValidPhone = (p) => /^[0-9]{10}$/.test(String(p || '').trim());
-const isValidAge = (a) => /^[1-9]\d*$/.test(String(a || '').trim());
+const isValidAge = (a) => /^[1-9]\d*$/.test(String(a || '').trim()) && Number(a) <= 120;
 const isValidName = (n) => /^[A-Za-z\s.'-]+$/.test(String(n || '').trim());
-const sanitizeName = (v) => String(v || '').replace(/[^A-Za-z\s.'-]/g, '');
-const sanitizeAge = (v) => String(v || '').replace(/[^0-9]/g, '');
+
+/** The first problem with the form, or null when it can be submitted. */
+function validate(f) {
+  if (!f.name.trim() || !f.age.trim() || !f.gender || !f.phone.trim() || !f.address.trim()) {
+    return 'Please fill all required patient demographic fields';
+  }
+  if (!isValidName(f.name)) return 'Name should contain letters only';
+  if (!isValidAge(f.age)) return 'Enter age as a whole number between 1 and 120';
+  if (!isValidPhone(f.phone)) return 'Phone number must be exactly 10 digits';
+  return null;
+}
 
 export default function RegisterWalkInPopup({ open, onClose, onRegistered }) {
+  // Mounting the form only while open gives every opening a blank form.
+  if (!open) return null;
+  return <WalkInForm onClose={onClose} onRegistered={onRegistered} />;
+}
+
+function WalkInForm({ onClose, onRegistered }) {
   const [f, setF] = useState(BLANK);
+  const set = (key) => (e) => setF((p) => ({ ...p, [key]: e.target.value }));
 
   useEffect(() => {
-    if (open) setF(BLANK);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return undefined;
     function onKeydown(e) {
       if (e.key === 'Escape') onClose();
     }
     document.addEventListener('keydown', onKeydown);
     return () => document.removeEventListener('keydown', onKeydown);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  function onNameChange(e) {
-    const original = e.target.value;
-    const sanitized = sanitizeName(original);
-    if (original !== sanitized) {
-      setF((p) => ({ ...p, name: sanitized }));
-      toast('Name should contain letters only', 'error');
-      return;
-    }
-    setF((p) => ({ ...p, name: original }));
-    if (original.trim() && !isValidName(original)) toast('Name should contain letters only', 'error');
-  }
-
-  function onAgeChange(e) {
-    const original = e.target.value;
-    const sanitized = sanitizeAge(original);
-    if (original !== sanitized) {
-      setF((p) => ({ ...p, age: sanitized }));
-      toast('Age must be a valid number', 'error');
-      return;
-    }
-    setF((p) => ({ ...p, age: original }));
-    if (original.trim() && !isValidAge(original)) toast('Enter age as a positive integer only', 'error');
-  }
+  }, [onClose]);
 
   async function submit() {
-    const name = f.name.trim();
-    const age = f.age.trim();
-    const phone = f.phone.trim();
-    const address = f.address.trim();
-
-    if (!name || !age || !f.gender || !phone || !address) {
-      toast('Please fill all required patient demographic fields', 'error');
+    const problem = validate(f);
+    if (problem) {
+      toast(problem, 'error');
       return;
     }
-    if (!isValidName(name)) return toast('Name should contain letters only', 'error');
-    if (!isValidAge(age)) return toast('Enter age as a positive integer only', 'error');
-    if (!isValidPhone(phone)) return toast('Phone number must be exactly 10 digits', 'error');
 
-    const birthYear = new Date().getFullYear() - Number(age);
+    const birthYear = new Date().getFullYear() - Number(f.age.trim());
 
     try {
       const patient = await api.patients.create({
-        name,
+        name: f.name.trim(),
         dob: birthYear + '-01-01',
         gender: f.gender,
-        phone,
-        address,
+        phone: f.phone.trim(),
+        address: f.address.trim(),
       });
       onClose();
       toast('Patient registered successfully with UHID ' + patient.uhid, 'success');
@@ -109,18 +87,18 @@ export default function RegisterWalkInPopup({ open, onClose, onRegistered }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div className="emergency-form-group" style={{ marginBottom: 0 }}>
             <label className="emergency-form-label" htmlFor="newName">Full Name *</label>
-            <input type="text" id="newName" placeholder="e.g. Rahul Sharma" className="emergency-form-control" value={f.name} onChange={onNameChange} />
+            <input type="text" id="newName" placeholder="e.g. Rahul Sharma" className="emergency-form-control" value={f.name} onChange={set('name')} />
           </div>
           <div className="emergency-form-group" style={{ marginBottom: 0 }}>
             <label className="emergency-form-label" htmlFor="newAge">Age (Years) *</label>
-            <input type="number" id="newAge" placeholder="e.g. 35" min="1" max="120" step="1" className="emergency-form-control" value={f.age} onChange={onAgeChange} />
+            <input type="number" id="newAge" placeholder="e.g. 35" min="1" max="120" step="1" className="emergency-form-control" value={f.age} onChange={set('age')} />
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div className="emergency-form-group" style={{ marginBottom: 0 }}>
             <label className="emergency-form-label" htmlFor="newGender">Gender *</label>
-            <select id="newGender" className="emergency-form-control" value={f.gender} onChange={(e) => setF((p) => ({ ...p, gender: e.target.value }))}>
+            <select id="newGender" className="emergency-form-control" value={f.gender} onChange={set('gender')}>
               <option value="">Select Gender</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
@@ -130,14 +108,14 @@ export default function RegisterWalkInPopup({ open, onClose, onRegistered }) {
           <div className="emergency-form-group" style={{ marginBottom: 0 }}>
             <label className="emergency-form-label" htmlFor="newPhone">Phone Number *</label>
             <input type="tel" id="newPhone" placeholder="10-digit mobile" maxLength={10} className="emergency-form-control"
-              value={f.phone} onChange={(e) => setF((p) => ({ ...p, phone: e.target.value }))} />
+              value={f.phone} onChange={set('phone')} />
           </div>
         </div>
 
         <div className="emergency-form-group" style={{ marginBottom: 16 }}>
           <label className="emergency-form-label" htmlFor="newAddress">Residential Address *</label>
           <input type="text" id="newAddress" placeholder="e.g. 45 Green Park, New Delhi" className="emergency-form-control"
-            value={f.address} onChange={(e) => setF((p) => ({ ...p, address: e.target.value }))} />
+            value={f.address} onChange={set('address')} />
         </div>
 
         <div className="emergency-modal-actions">
@@ -149,4 +127,3 @@ export default function RegisterWalkInPopup({ open, onClose, onRegistered }) {
     document.body,
   );
 }
-

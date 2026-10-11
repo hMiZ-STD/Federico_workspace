@@ -1,7 +1,8 @@
 'use strict';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../../api/index.js';
+import { useApi } from '../../hooks/useApi.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useSession } from '../../auth/useSession.js';
 import Button from '../../components/ui/Button.jsx';
@@ -9,54 +10,61 @@ import ModuleLock from '../../components/layout/ModuleLock.jsx';
 import { toast, confirm } from '../../components/feedback/feedback.js';
 import StaffDialog from './StaffDialog.jsx';
 import DoctorDialog from './DoctorDialog.jsx';
+import BrandingCard from './BrandingCard.jsx';
+
+/** The portal roles a staff login can hold (Admin is the provisioned owner). */
+const STAFF_ROLES = [
+  { value: 'PRE', label: 'PRE' },
+  { value: 'HOM', label: 'HOM' },
+  { value: 'FA', label: 'FA' },
+];
 
 /**
  * Ported from Admin/screen-05-people.html + people.js.
  *
- * This screen is absent from front-end/README.md but is fully wired and linked
- * from the Admin nav, so it is in scope (DEC-9). The DOCTOR module gate applies
- * in two places, exactly as before: the "+ Add Doctor" button, and the doctors
- * table which shows an explanatory row instead of loading.
+ * The organization's single Staff & Doctors directory. It replaced the
+ * separate Roles & Staff screen and its 24-checkbox custom-RBAC matrix: each
+ * staff login now has one portal role, changed from the dropdown in its row,
+ * and a one-click enable/disable.
+ *
+ * The DOCTOR module gate applies in two places, exactly as before: the
+ * "+ Add Doctor" button, and the doctors table which shows an explanatory row
+ * instead of loading.
  */
 export default function PeoplePage() {
   useDocumentTitle('People | Federico Hospital Admin');
   const { hasModule } = useSession();
   const doctorModule = hasModule('DOCTOR');
 
-  const [staff, setStaff] = useState(null);
-  const [doctors, setDoctors] = useState(null);
-  const [wards, setWards] = useState([]);
   const [staffDialogOpen, setStaffDialogOpen] = useState(false);
   const [editingDoctorId, setEditingDoctorId] = useState(undefined);
 
-  const loadStaff = useCallback(async () => {
+  // staff / doctors: null = loading, false = failed, array = loaded.
+  const staffLoad = useApi(async () => {
     try {
-      setStaff(await api.rbac.staff());
+      return await api.rbac.staff();
     } catch (err) {
-      setStaff(false);
       toast(err.message || 'Could not load staff.', 'error');
+      throw err;
     }
   }, []);
+  const staff = staffLoad.error ? false : staffLoad.data;
+  const loadStaff = staffLoad.reload;
 
-  const loadDoctors = useCallback(async () => {
-    if (!doctorModule) {
-      setDoctors('locked');
-      return;
-    }
+  // Without the DOCTOR module nothing is fetched; the table shows the locked row.
+  const doctorsLoad = useApi(async () => {
+    if (!doctorModule) return null;
     try {
       const [d, w] = await Promise.all([api.doctors.list(), api.wards.list().catch(() => [])]);
-      setDoctors(d || []);
-      setWards(w || []);
+      return { doctors: d || [], wards: w || [] };
     } catch (err) {
-      setDoctors(false);
       toast(err.message || 'Could not load doctors.', 'error');
+      throw err;
     }
   }, [doctorModule]);
-
-  useEffect(() => {
-    loadStaff();
-    loadDoctors();
-  }, [loadStaff, loadDoctors]);
+  const doctors = doctorsLoad.error ? false : doctorsLoad.data ? doctorsLoad.data.doctors : null;
+  const wards = doctorsLoad.data ? doctorsLoad.data.wards : [];
+  const loadDoctors = doctorsLoad.reload;
 
   async function toggleStaff(userId, next) {
     try {
@@ -65,6 +73,17 @@ export default function PeoplePage() {
       await loadStaff();
     } catch (err) {
       toast(err.message || 'Could not update this login.', 'error');
+    }
+  }
+
+  async function changeRole(member, nextRole) {
+    if (nextRole === member.actor_role) return;
+    try {
+      await api.rbac.setStaffRole(member.user_id, nextRole);
+      toast(member.name + ' is now ' + nextRole + '. They will sign in to the ' + nextRole + ' portal.', 'success');
+      await loadStaff();
+    } catch (err) {
+      toast(err.message || 'Could not change this role.', 'error');
     }
   }
 
@@ -133,7 +152,19 @@ export default function PeoplePage() {
                       <tr key={m.user_id}>
                         <td style={{ fontWeight: 500 }}>{m.name}</td>
                         <td>{m.email}</td>
-                        <td><span className="badge badge-neutral">{m.actor_role}</span></td>
+                        <td>
+                          <select
+                            className="input"
+                            aria-label={'Portal role for ' + m.name}
+                            style={{ width: 'auto', minWidth: 96 }}
+                            value={m.actor_role || ''}
+                            onChange={(e) => changeRole(m, e.target.value)}
+                          >
+                            {STAFF_ROLES.map((r) => (
+                              <option key={r.value} value={r.value}>{r.label}</option>
+                            ))}
+                          </select>
+                        </td>
                         <td><span className={'status-pill ' + (active ? 'active' : 'inactive')}>{active ? 'Active' : 'Disabled'}</span></td>
                         <td>
                           <Button
@@ -176,7 +207,7 @@ export default function PeoplePage() {
                 <tr><th>Name</th><th>Specialization</th><th>Department</th><th>Contact</th><th>Action</th></tr>
               </thead>
               <tbody id="doctors-tbody">
-                {doctors === 'locked' ? (
+                {!doctorModule ? (
                   <tr>
                     <td colSpan="5" style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>
                       The Doctor Management module is not enabled for your organization.
@@ -209,6 +240,8 @@ export default function PeoplePage() {
           </div>
         </div>
       </div>
+
+      <BrandingCard />
 
       <StaffDialog open={staffDialogOpen} onClose={() => setStaffDialogOpen(false)} onSaved={loadStaff} />
       <DoctorDialog

@@ -1,7 +1,7 @@
 'use strict';
 
 import { useSession } from '../../auth/useSession.js';
-import { moduleLabel, MODULE_UNAVAILABLE_BODY } from '../../lib/entitlements.js';
+import { MODULE_UNAVAILABLE_BODY } from '../../lib/entitlements.js';
 import { alert } from '../feedback/feedback.js';
 import './ModuleLock.css';
 
@@ -15,9 +15,8 @@ import './ModuleLock.css';
  *
  * `mode="hide"` mirrors the old data-lock-mode="hide" opt-in.
  */
-export function showModuleUnavailable(moduleCode) {
+function showModuleUnavailable() {
   alert({ title: 'Module Not Available', body: MODULE_UNAVAILABLE_BODY });
-  return false;
 }
 
 export default function ModuleLock({ module: moduleCode, mode = 'lock', children, className = '' }) {
@@ -33,16 +32,11 @@ export default function ModuleLock({ module: moduleCode, mode = 'lock', children
       onClickCapture={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        showModuleUnavailable(moduleCode);
+        showModuleUnavailable();
       }}
     >
       {children}
     </span>
   );
-}
-
-/** Convenience for nav links, which are the overwhelming majority of lock sites. */
-export function useModuleLabel() {
-  return moduleLabel;
 }
 

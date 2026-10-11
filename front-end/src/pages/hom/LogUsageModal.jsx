@@ -1,26 +1,24 @@
 'use strict';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../../components/layout/Modal.jsx';
 import { formatCurrency } from './homHelpers.js';
 import { itemCost, findPatientByUhid, validateUsageDetails } from './inventoryHelpers.js';
 
 /** Ported from #modal-log-usage plus openLogUsageModal / submitModalUsage in HOM/inventory.js. */
 export default function LogUsageModal({ open, initialItemId, data, onClose, onSubmit }) {
-  const [itemId, setItemId] = useState('');
+  // Mounted only while open (re-keyed per item), so each opening starts fresh.
+  if (!open) return null;
+  return (
+    <LogUsageForm key={initialItemId ?? 'none'} initialItemId={initialItemId} data={data} onClose={onClose} onSubmit={onSubmit} />
+  );
+}
+
+function LogUsageForm({ initialItemId, data, onClose, onSubmit }) {
+  const [itemId, setItemId] = useState(initialItemId ? String(initialItemId) : '');
   const [uhid, setUhid] = useState('');
   const [qty, setQty] = useState(1);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!open) return;
-    setItemId(initialItemId ? String(initialItemId) : '');
-    setUhid('');
-    setQty(1);
-    setError('');
-  }, [open, initialItemId]);
-
-  if (!open) return null;
 
   const item = data.items.find((i) => i.item_id === Number(itemId));
   const cost = itemCost(item, data.services);

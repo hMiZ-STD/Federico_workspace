@@ -1,13 +1,46 @@
 'use strict';
 
-/** MAX_PATIENTS_PER_SLOT, ported unchanged from patient-book-appointment.js. */
-export const MAX_PATIENTS_PER_SLOT = 3;
-
 /** Mirrors the backend caps (fileUpload.js): 5 MB, pdf/jpg/jpeg/png only. */
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const ALLOWED_UPLOAD_EXT = ['.pdf', '.jpg', '.jpeg', '.png'];
 
-/** Standardises e.g. "9:00 AM" -> "09:00 AM". */
+/**
+ * Standard doctor duty roster (mirrors back-end doctor.service.js): Monday to
+ * Friday, 09:00 - 17:00. A preferred time outside it can never be confirmed by
+ * PRE for a doctor without explicit calendar rows, so the form rejects it.
+ */
+export const DUTY_START = '09:00';
+export const DUTY_END = '17:00';
+export const DUTY_HOURS_LABEL = 'Monday – Friday, 09:00 AM – 05:00 PM';
+
+/** Quick picks that pre-fill the time input. */
+export const TIME_WINDOWS = [
+  { id: 'morning', label: 'Morning (09:00 AM – 12:00 PM)', start: '09:00', end: '12:00', pick: '10:00' },
+  { id: 'afternoon', label: 'Afternoon (12:00 PM – 05:00 PM)', start: '12:00', end: '17:00', pick: '14:00' },
+];
+
+/** The window a 24-hour "HH:MM" falls in, or '' when outside duty hours. */
+export function windowFor(time24) {
+  const match = TIME_WINDOWS.find((w) => time24 >= w.start && time24 < w.end);
+  return match ? match.id : '';
+}
+
+/**
+ * Why a preferred date + 24-hour time can't be booked, or null if it can.
+ * Dates are compared as plain YYYY-MM-DD strings, so no timezone shifts.
+ */
+export function dutyHoursError(dateIso, time24) {
+  const day = new Date(dateIso + 'T00:00:00').getDay();
+  if (day === 0 || day === 6) {
+    return 'Doctors are on duty ' + DUTY_HOURS_LABEL + '. Please choose a weekday.';
+  }
+  if (time24 < DUTY_START || time24 >= DUTY_END) {
+    return 'Please choose a time between 09:00 AM and 05:00 PM.';
+  }
+  return null;
+}
+
+/** Standardises e.g. "9:00 AM" or "14:30" -> "09:00 AM" / "02:30 PM". */
 export function normalizeSlotTime(t) {
   if (!t) return '';
   const clean = t.trim().toUpperCase();
@@ -29,72 +62,3 @@ export function formatSlotDate(iso) {
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-
-export const SLOT_BLOCKS = [
-  {
-    id: 'morning-slots',
-    period: '🌅 Morning (09:00 AM – 01:00 PM)',
-    times: [
-      '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
-      '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM',
-    ],
-  },
-  {
-    id: 'afternoon-slots',
-    period: '☀️ Afternoon (02:00 PM – 05:00 PM)',
-    times: ['02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM'],
-  },
-  {
-    id: 'evening-slots',
-    period: '🌆 Evening (05:00 PM – 07:00 PM)',
-    times: ['05:00 PM', '05:30 PM', '06:00 PM', '06:30 PM'],
-  },
-];
-
-/**
- * Counts booked appointments per normalised slot time for the current filters.
- *
- * DEFECT D5 is preserved on the `docMatch` line: store appointments never carry
- * a `doctorId`, so picking a doctor can only ever match when no doctor is
- * selected. The per-doctor capacity filter has therefore never narrowed
- * anything. Constraint 1 keeps it that way.
- */
-export function countBookedByTime(appointments, selectedDate, selectedDept, selectedDoctorId) {
-  const relevant = appointments.filter((apt) => {
-    const dateMatch = apt.date === selectedDate;
-    const deptMatch =
-      !selectedDept ||
-      selectedDept === 'none' ||
-      (apt.department && apt.department.toLowerCase() === selectedDept.toLowerCase());
-    const docMatch = !selectedDoctorId || apt.doctorId === selectedDoctorId;
-    const activeMatch = !['Cancelled', 'Rejected'].includes(apt.status);
-    return dateMatch && deptMatch && docMatch && activeMatch;
-  });
-
-  const counts = {};
-  relevant.forEach((apt) => {
-    const normalized = normalizeSlotTime(apt.time);
-    if (normalized) counts[normalized] = (counts[normalized] || 0) + 1;
-  });
-  return counts;
-}
-
-/** The Available / "N Left" / Booked ladder each slot button renders. */
-export function slotState(time, counts, selectedDate, selectedDept) {
-  const booked = counts[normalizeSlotTime(time)] || 0;
-  if (!selectedDate || !selectedDept || selectedDept === 'none') {
-    return { className: 'available', label: 'Available', disabled: false };
-  }
-  if (booked >= MAX_PATIENTS_PER_SLOT) {
-    return { className: 'booked', label: 'Booked', disabled: true };
-  }
-  if (booked > 0) {
-    return {
-      className: 'limited',
-      label: MAX_PATIENTS_PER_SLOT - booked + ' Left',
-      disabled: false,
-    };
-  }
-  return { className: 'available', label: 'Available', disabled: false };
-}
-

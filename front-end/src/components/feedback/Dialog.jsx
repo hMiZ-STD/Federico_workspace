@@ -1,6 +1,6 @@
 'use strict';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 const EXIT_MS = 300;
 
@@ -50,7 +50,7 @@ export default function Dialog({ kind, options, onClose }) {
     return () => document.removeEventListener('keydown', onKeydown);
   });
 
-  const titleId = useRef('md-dialog-title-' + Math.random().toString(36).slice(2, 9)).current;
+  const titleId = 'md-dialog-title-' + useId();
 
   return (
     <div className={'md-dialog-scrim' + (visible ? ' is-visible' : '')}>

@@ -6,34 +6,33 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import ModuleLock from '../../components/layout/ModuleLock.jsx';
 import { FaContext } from './FaContext.jsx';
-import { useHashRoute } from './useHashRoute.js';
+import { useHashRoute, DEFAULT_ROUTE } from './useHashRoute.js';
 import { toast } from '../../components/feedback/feedback.js';
-import DashboardView from './DashboardView.jsx';
 import ChargesView from './ChargesView.jsx';
 import LedgerView from './LedgerView.jsx';
 import EodBillingView from './EodBillingView.jsx';
-import DischargeView from './DischargeView.jsx';
-import ReceiptsView from './ReceiptsView.jsx';
 import baseCss from '../../styles/fa/base.css?inline';
 import layoutCss from '../../styles/fa/layout.css?inline';
 import componentsCss from '../../styles/fa/components.css?inline';
 
+/**
+ * The three FA views:
+ *  - Ledger            running ledgers: billing queues + line items + manual charges
+ *  - Charges           approve HOM-staged charges (leaders) into ledgers
+ *  - EOD & Settlement  EOD bills, discharge settlement / payment, receipts
+ * The former Dashboard, Discharge and Receipts hashes alias onto these
+ * (useHashRoute.js#ROUTE_ALIASES).
+ */
 const LINKS = [
-  { route: '#/dashboard', label: 'Dashboard' },
-  { route: '#/charges', label: 'Charges', module: 'BILLING' },
   { route: '#/ledger', label: 'Ledger', module: 'BILLING' },
-  { route: '#/eod', label: 'EOD Billing', module: 'BILLING' },
-  { route: '#/discharge', label: 'Discharge', module: 'BILLING' },
-  { route: '#/receipts', label: 'Receipts', module: 'BILLING' },
+  { route: '#/charges', label: 'Charges', module: 'BILLING' },
+  { route: '#/eod', label: 'EOD & Settlement', module: 'BILLING' },
 ];
 
 /**
- * permissions.js#routeAccess lists the same six routes for ADMIN, SUPER_USER
- * and ORG_ADMIN, so the per-role part never excluded anything and the only real
+ * permissions.js#routeAccess listed the same routes for ADMIN, SUPER_USER and
+ * ORG_ADMIN, so the per-role part never excluded anything and the only real
  * gate was hasModuleAccess('FA', actor). That is what this reproduces.
- *
- * The legacy updateUI() also discovered each link's route by regex-matching its
- * `onclick` attribute string; with real handlers there is nothing to parse.
  */
 const ROUTES = LINKS.map((l) => l.route.replace('#/', ''));
 
@@ -70,8 +69,9 @@ export default function FaLayout() {
 
   const canAccess = useCallback(
     (route) => {
-      const raw = String(route || '').replace(/^#\/?/, '') || 'dashboard';
-      const page = raw.split('/')[0].split('?')[0] || 'dashboard';
+      const fallback = DEFAULT_ROUTE.replace('#/', '');
+      const raw = String(route || '').replace(/^#\/?/, '') || fallback;
+      const page = raw.split('/')[0].split('?')[0] || fallback;
       return ROUTES.includes(page) && (hasModuleAccess('FA') ?? true);
     },
     [hasModuleAccess],
@@ -98,17 +98,14 @@ export default function FaLayout() {
     window.location.href = '/login/login-page.html';
   }
 
-  const activeRoute = mainRoute.replace('#/', '') || 'dashboard';
+  const activeRoute = mainRoute.replace('#/', '') || DEFAULT_ROUTE.replace('#/', '');
 
   let view;
   if (!canAccess(mainRoute)) {
     view = null;
-  } else if (mainRoute === '#/dashboard') view = <DashboardView />;
+  } else if (mainRoute === '#/ledger') view = <LedgerView />;
   else if (mainRoute === '#/charges') view = <ChargesView />;
-  else if (mainRoute === '#/ledger') view = <LedgerView />;
   else if (mainRoute === '#/eod') view = <EodBillingView />;
-  else if (mainRoute === '#/discharge') view = <DischargeView />;
-  else if (mainRoute === '#/receipts') view = <ReceiptsView />;
   else {
     view = (
       <div className="card" style={{ padding: '50px', textAlign: 'center' }}>

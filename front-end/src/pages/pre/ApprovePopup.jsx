@@ -6,62 +6,18 @@ import { toast } from '../../components/feedback/feedback.js';
 import { sortDoctorsForDepartment, to24Hour } from './preHelpers.js';
 import PrePopup, { DoctorOptions } from './PrePopup.jsx';
 
-async function checkDoctorAvailability(doctorId, date, time24) {
-  const [slots, allAppointments] = await Promise.all([
-    api.doctors.availabilityForDoctor(doctorId),
-    api.appointments.list(),
-  ]);
+const UNAVAILABLE = 'Doctor is not available at this time. Please select another time slot.';
 
-  const allSlots = slots || [];
-  const slotsOnDate = allSlots.filter((s) => String(s.available_date || '').slice(0, 10) === date);
-
-  function toMinutes(t) {
-    if (!t) return null;
-    const parts = String(t).trim().split(':');
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1] || '0', 10);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-    return hours * 60 + minutes;
-  }
-
-  const reqMins = toMinutes(time24);
-  const coveredBySlot = slotsOnDate.some((s) => {
-    if (String(s.status || 'AVAILABLE').toUpperCase() !== 'AVAILABLE') return false;
-    const start = toMinutes(s.start_time);
-    const end = toMinutes(s.end_time);
-    return start !== null && end !== null && reqMins !== null && reqMins >= start && reqMins < end;
-  });
-
-  if (slotsOnDate.length > 0 && !coveredBySlot) {
-    return {
-      available: false,
-      reason: 'Doctor is not available at this time. Please select another time slot.',
-    };
-  }
-
-  const docId = Number(doctorId);
-  const conflict = (allAppointments || []).some((appt) => {
-    if (Number(appt.doctor_id) !== docId) return false;
-    if (appt.status === 'CANCELLED' || appt.status === 'COMPLETED') return false;
-
-    const apptDate = (appt.appointment_date || '').slice(0, 10);
-    if (apptDate !== date) return false;
-
-    const apptMins = toMinutes((appt.appointment_time || '').slice(0, 5));
-    return apptMins !== null && reqMins !== null && Math.abs(apptMins - reqMins) < 30;
-  });
-
-  if (conflict) {
-    return {
-      available: false,
-      reason: 'Doctor is not available at this time. Please select another time slot.',
-    };
-  }
-
-  return { available: true, reason: null };
-}
-
-/** Ported from openApprove / confirmApprove in PRE/js/requests.js. */
+/**
+ * Ported from openApprove / confirmApprove in PRE/js/requests.js.
+ *
+ * This is where PRE allocates the on-duty doctor for an incoming request.
+ * Availability (the doctor's calendar, the Mon–Fri 09:00–17:00 roster, and
+ * double-booking) is decided by the backend when the approval is submitted;
+ * a 409 from it is shown inline under the time picker. The popup used to
+ * re-implement that check client-side from two extra fetches, and the two
+ * copies had drifted apart.
+ */
 export default function ApprovePopup({ request, doctors, onClose, onDone }) {
   const [doctorId, setDoctorId] = useState(request?.doctor_id ? String(request.doctor_id) : '');
 
@@ -85,7 +41,7 @@ export default function ApprovePopup({ request, doctors, onClose, onDone }) {
 
   // Availability error shown inline beneath the time picker.
   const [availError, setAvailError] = useState('');
-  // Prevents double-click while the availability check is in flight.
+  // Prevents double-click while the approval is in flight.
   const [checking, setChecking] = useState(false);
 
   if (!request) return null;
@@ -95,69 +51,36 @@ export default function ApprovePopup({ request, doctors, onClose, onDone }) {
       toast('Select a doctor', 'error');
       return;
     }
-
-    // Clear any previous availability error before re-checking.
-    setAvailError('');
-
-    // Build the requested time in 24-hour format for the availability check.
-    // If no hour is picked, fall back to the patient's originally requested time.
-    let time24 = '';
-    if (hour) {
-      // Convert the selected 12-hour components to 24-hour for the check.
-      let h = parseInt(hour, 10);
-      if (meridiem === 'PM' && h < 12) h += 12;
-      if (meridiem === 'AM' && h === 12) h = 0;
-      time24 = `${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    } else {
-      // Use the patient's originally requested time (converted to 24h).
-      time24 = to24Hour(request.requested_time);
-    }
-
-    // Use the patient's requested date for the slot check.
-    const date = (request.requested_date || '').slice(0, 10);
-
-    if (!date || !time24) {
-      setAvailError('Doctor is not available at this time. Please select another time slot.');
+    // An empty hour keeps the patient's requested time; with neither, there
+    // is no slot to book.
+    if (!request.requested_date || (!hour && !to24Hour(request.requested_time))) {
+      setAvailError(UNAVAILABLE);
       return;
     }
 
+    setAvailError('');
+    const payload = { status: 'APPROVED', doctor_id: Number(doctorId) };
+    if (hour) {
+      const hh = String(hour).padStart(2, '0');
+      const mm = String(minute).padStart(2, '0');
+      payload.requested_time = `${hh}:${mm} ${meridiem}`;
+    }
+
     setChecking(true);
-    let checkResult;
     try {
-      checkResult = await checkDoctorAvailability(doctorId, date, time24);
+      await api.preRequests.update(request.pre_request_id, payload);
     } catch (err) {
-      checkResult = {
-        available: false,
-        reason: err.message || 'Doctor is not available at this time. Please select another time slot.',
-      };
+      // 409 = the doctor is off duty or already booked for this slot.
+      if (err.status === 409) setAvailError(err.message || UNAVAILABLE);
+      else toast(err.message || 'Could not approve this request', 'error');
+      return;
     } finally {
       setChecking(false);
     }
 
-    if (!checkResult.available) {
-      setAvailError(checkResult.reason || 'Doctor is not available at this time. Please select another time slot.');
-      return;
-    }
-
-    // ── Doctor is available — proceed with normal approval ──
-    try {
-      const payload = { status: 'APPROVED', doctor_id: Number(doctorId) };
-
-      // Build the 12-hour time string only when the user has picked an hour.
-      // An empty hour keeps the patient's originally requested slot.
-      if (hour) {
-        const hh = String(hour).padStart(2, '0');
-        const mm = String(minute).padStart(2, '0');
-        payload.requested_time = `${hh}:${mm} ${meridiem}`;
-      }
-
-      await api.preRequests.update(request.pre_request_id, payload);
-      onClose();
-      toast('Approved', 'success');
-      await onDone();
-    } catch (err) {
-      toast(err.message || 'Could not approve this request', 'error');
-    }
+    onClose();
+    toast('Approved', 'success');
+    await onDone();
   }
 
   // Clear the availability error whenever the doctor or time selection changes

@@ -1,7 +1,5 @@
 'use strict';
 
-import { escapeHtml } from '../../lib/formatters.js';
-
 /**
  * Ported from shared/department-options.js#populateDepartmentSelect.
  *
@@ -41,6 +39,4 @@ export default function DepartmentSelect({
     </select>
   );
 }
-
-export { escapeHtml };
 

@@ -1,7 +1,6 @@
 'use strict';
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/index.js';
 import { useApi } from '../../hooks/useApi.js';
 import { usePolling } from '../../hooks/usePolling.js';
@@ -14,6 +13,7 @@ import { toast } from '../../components/feedback/feedback.js';
 import { statusLabel, statusVariant, daysSince, formatDate, joinPreRequestsWithPatients } from './homHelpers.js';
 import PatientDetailModal from './PatientDetailModal.jsx';
 import DischargeModal from './DischargeModal.jsx';
+import PostServiceModal from './PostServiceModal.jsx';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import patientFlowCss from '../../styles/hom/patient-flow.css?inline';
 
@@ -23,21 +23,22 @@ const FLOW_STATUSES = ['ADMITTED', 'DISCHARGE_REQUESTED', 'DISCHARGE_APPROVED', 
 export default function PatientFlowPage() {
   usePageStyles(patientFlowCss);
   useDocumentTitle('Patient Flow | Federico Hospital HOM');
-  const navigate = useNavigate();
   const uhidParam = useSearchParam('uhid');
 
   const [filters, setFilters] = useState({ search: uhidParam || '', department: '', status: '', dateRange: '' });
-  const [detailId, setDetailId] = useState(null);
+  const [detail, setDetail] = useState(null); // { id, tab }
   const [dischargeId, setDischargeId] = useState(null);
+  const [postOpen, setPostOpen] = useState(false);
 
   const { data, reload } = useApi(async () => {
-    const [preRequests, patients, doctors, beds, admissions, ledgers] = await Promise.all([
+    const [preRequests, patients, doctors, beds, admissions, ledgers, services] = await Promise.all([
       api.preRequests.list().catch(() => []),
       api.patients.list().catch(() => []),
       api.doctors.list().catch(() => []),
       api.wards.beds().catch(() => []),
       api.admissions.list().catch(() => []),
       api.billing.ledger.listAll().catch(() => []),
+      api.billing.services.list().catch(() => []),
     ]);
 
     const doctorsById = {};
@@ -66,7 +67,20 @@ export default function PatientFlowPage() {
       billsCleared: Boolean(billsClearedByPatient[r.patient_id]),
     }));
 
-    return { rows };
+    // "+ Post Service" (moved here from the removed HOM Billing screen):
+    // only active admissions can have a service charge staged for FA.
+    const patientsById = {};
+    (Array.isArray(patients) ? patients : []).forEach((p) => (patientsById[p.patient_id] = p));
+    const activeAdmissions = (Array.isArray(admissions) ? admissions : [])
+      .filter((a) => a.status !== 'DISCHARGED')
+      .map((a) => ({
+        admission_id: a.admission_id,
+        patient_id: a.patient_id,
+        patientName: patientsById[a.patient_id]?.name || 'Patient',
+        uhid: patientsById[a.patient_id]?.uhid || '',
+      }));
+
+    return { rows, activeAdmissions, services: Array.isArray(services) ? services : [] };
   }, []);
 
   usePolling(reload, 15000);
@@ -143,6 +157,7 @@ export default function PatientFlowPage() {
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <button className="btn btn-secondary btn-default" id="patient-flow-export" onClick={exportCsv}>Export CSV</button>
+            <button className="btn btn-primary btn-default" id="btn-open-post-service" onClick={() => setPostOpen(true)}>+ Post Service</button>
           </div>
         </div>
 
@@ -256,11 +271,11 @@ export default function PatientFlowPage() {
                       <td><Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge></td>
                       <td>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <Button variant="secondary" size="sm" onClick={() => setDetailId(row.pre_request_id)}>View</Button>
+                          <Button variant="secondary" size="sm" onClick={() => setDetail({ id: row.pre_request_id, tab: 'overview' })}>View</Button>
                           {row.status === 'DISCHARGE_REQUESTED' ? (
                             <Button variant="primary" size="sm" onClick={() => setDischargeId(row.pre_request_id)}>Approve Discharge</Button>
                           ) : row.status === 'DISCHARGED' ? (
-                            <Button variant="outline" size="sm" onClick={() => navigate('/HOM/screen-05-billing.html?uhid=' + encodeURIComponent(row.patientUhid))}>
+                            <Button variant="outline" size="sm" onClick={() => setDetail({ id: row.pre_request_id, tab: 'supply' })}>
                               View Receipt
                             </Button>
                           ) : null}
@@ -282,15 +297,25 @@ export default function PatientFlowPage() {
       </main>
 
       <PatientDetailModal
-        row={rows.find((r) => r.pre_request_id === detailId) || null}
-        onClose={() => setDetailId(null)}
-        onOpenDischarge={(id) => { setDetailId(null); setDischargeId(id); }}
-        onOpenBilling={(uhid) => navigate('/HOM/screen-05-billing.html?uhid=' + encodeURIComponent(uhid))}
+        key={detail ? 'detail-' + detail.id + '-' + detail.tab : 'detail-closed'}
+        row={detail ? rows.find((r) => r.pre_request_id === detail.id) || null : null}
+        initialTab={detail?.tab}
+        onClose={() => setDetail(null)}
+        onOpenDischarge={(id) => { setDetail(null); setDischargeId(id); }}
       />
 
       <DischargeModal
+        key={'discharge-' + (dischargeId ?? 'closed')}
         row={rows.find((r) => r.pre_request_id === dischargeId) || null}
         onClose={() => setDischargeId(null)}
+        onChanged={reload}
+      />
+
+      <PostServiceModal
+        open={postOpen}
+        admissions={data?.activeAdmissions || []}
+        services={data?.services || []}
+        onClose={() => setPostOpen(false)}
         onChanged={reload}
       />
     </>

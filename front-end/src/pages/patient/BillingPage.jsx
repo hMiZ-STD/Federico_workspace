@@ -1,7 +1,8 @@
 'use strict';
 
 import { useState } from 'react';
-import { usePatientStore } from './PatientStoreContext.jsx';
+import { useSearchParams } from 'react-router-dom';
+import { usePatientStore } from './usePatientStore.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { toast, selectOne } from '../../components/feedback/feedback.js';
 import DocumentRow from './DocumentRow.jsx';
@@ -34,6 +35,16 @@ export default function BillingPage() {
   const [activeTab, setActiveTab] = useState('invoices');
   const [detailBill, setDetailBill] = useState(null);
   const [payingLedger, setPayingLedger] = useState(null);
+
+  // ?bill=<id> (from the dashboard's Bill Summary) opens that invoice directly.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedBill = bills.find((b) => b.id === searchParams.get('bill')) || null;
+  const shownBill = detailBill || linkedBill;
+
+  function closeDetail() {
+    setDetailBill(null);
+    if (searchParams.has('bill')) setSearchParams({}, { replace: true });
+  }
 
   const receipts = billingSections.receipts || [];
   const discharge = billingSections.discharge || [];
@@ -374,14 +385,14 @@ export default function BillingPage() {
       </main>
 
       <BillDetailsModal
-        open={Boolean(detailBill)}
-        bill={detailBill}
-        onClose={() => setDetailBill(null)}
+        open={Boolean(shownBill)}
+        bill={shownBill}
+        onClose={closeDetail}
         onPrint={printInvoice}
         onPay={(bill) => {
           // openBillModal()'s Pay handler closes the dialog before asking for
           // the payment method.
-          setDetailBill(null);
+          closeDetail();
           payNow(bill);
         }}
       />

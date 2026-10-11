@@ -25,8 +25,9 @@ export default function Patient360Modal({ patient, doctorsById, bedsById, onClos
   if (!patient) return null;
 
   const seen = new Set();
-  const encounters = [...(patient.preRequests || []), ...(patient.appointments || [])].filter((enc) => {
-    const key = enc.appointment_id ? 'apt_' + enc.appointment_id : enc.pre_request_id ? 'pr_' + enc.pre_request_id : 'raw_' + Math.random();
+  const encounters = [...(patient.preRequests || []), ...(patient.appointments || [])].filter((enc, i) => {
+    // Encounters with neither id are never duplicates of anything.
+    const key = enc.appointment_id ? 'apt_' + enc.appointment_id : enc.pre_request_id ? 'pr_' + enc.pre_request_id : 'raw_' + i;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

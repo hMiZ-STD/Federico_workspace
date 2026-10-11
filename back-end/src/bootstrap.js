@@ -12,10 +12,13 @@
  *    organizationModules row for every module code, so the now fail-closed
  *    requireModule() never 403s an org purely because a newly added module
  *    code has no flag row yet.
+ *  - backfillDoctorIds(): fills doctor_id on appointments restored from an
+ *    older db.json that only recorded the availability slot.
  */
 
 const rbacService = require('./services/rbac.service');
 const organizationService = require('./services/organization.service');
+const appointmentService = require('./services/appointment.service');
 
 function runBootReconciliation() {
   try {
@@ -27,6 +30,11 @@ function runBootReconciliation() {
     organizationService.syncOrganizationConfig();
   } catch (err) {
     console.warn(`[Bootstrap] syncOrganizationConfig failed: ${err.message}`);
+  }
+  try {
+    appointmentService.backfillDoctorIds();
+  } catch (err) {
+    console.warn(`[Bootstrap] backfillDoctorIds failed: ${err.message}`);
   }
 }
 

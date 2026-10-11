@@ -1,6 +1,6 @@
 'use strict';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useSession } from '../../auth/useSession.js';
 import ModuleLock from './ModuleLock.jsx';
@@ -25,7 +25,6 @@ export default function SharedNav({ roleName = 'Staff', brandName = 'Federico', 
   const navigate = useNavigate();
   const { logout } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
-  const profileRef = useRef(null);
 
   // Any click outside closes the menu - the legacy code bound this on document.
   useEffect(() => {

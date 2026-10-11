@@ -1,7 +1,7 @@
 'use strict';
 
 import { useEffect, useRef, useState } from 'react';
-import { usePatientStore } from './PatientStoreContext.jsx';
+import { usePatientStore } from './usePatientStore.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
@@ -96,28 +96,29 @@ export default function ProfilePage() {
   // scan isn't dropped by an unrelated save, and updated in place as soon as a
   // new file finishes uploading. `undefined` means "not seeded yet", exactly as
   // the module-level uploadedCardUrls object used it.
-  const cardUrls = useRef({ front: undefined, back: undefined });
-  const [cardUrlState, setCardUrlState] = useState({ front: null, back: null });
+  const [cardUrlState, setCardUrlState] = useState({ front: undefined, back: undefined });
   const [uploadingName, setUploadingName] = useState({ front: '', back: '' });
 
   /**
    * populateProfileForm(): re-seeds every field from the store. The legacy page
    * ran this on load and again on every `patientStoreUpdated`, so a background
    * refresh would overwrite an in-progress edit; that is preserved here.
+   *
+   * Done while rendering when the store hands over a new profile object
+   * (React's "adjust state when a prop changes" pattern) rather than in an
+   * effect, which rendered once with stale fields first.
    */
-  useEffect(() => {
-    if (!profile) return;
+  const [seededFrom, setSeededFrom] = useState(null);
+  if (profile && profile !== seededFrom) {
+    setSeededFrom(profile);
     const next = valuesFromProfile(profile);
     setValues(next);
     setSnapshot(next);
-    if (cardUrls.current.front === undefined) {
-      cardUrls.current.front = profile.insurance?.cardFrontUrl || null;
-    }
-    if (cardUrls.current.back === undefined) {
-      cardUrls.current.back = profile.insurance?.cardBackUrl || null;
-    }
-    setCardUrlState({ front: cardUrls.current.front, back: cardUrls.current.back });
-  }, [profile]);
+    setCardUrlState((s) => ({
+      front: s.front === undefined ? profile.insurance?.cardFrontUrl || null : s.front,
+      back: s.back === undefined ? profile.insurance?.cardBackUrl || null : s.back,
+    }));
+  }
 
   function setValue(id, value) {
     setValues((v) => ({ ...v, [id]: value }));
@@ -147,9 +148,7 @@ export default function ProfilePage() {
     setPasswordHint({ text: '', variant: '' });
     if (section === 'insurance') {
       const persisted = profile?.insurance || {};
-      cardUrls.current.front = persisted.cardFrontUrl || null;
-      cardUrls.current.back = persisted.cardBackUrl || null;
-      setCardUrlState({ front: cardUrls.current.front, back: cardUrls.current.back });
+      setCardUrlState({ front: persisted.cardFrontUrl || null, back: persisted.cardBackUrl || null });
     }
     setEditing(null);
   }
@@ -210,8 +209,8 @@ export default function ProfilePage() {
           validFrom: valueOf('valid-from'),
           validTo: valueOf('valid-to'),
           coverage: parseCoverage(valueOf('coverage-amount')),
-          cardFrontUrl: cardUrls.current.front,
-          cardBackUrl: cardUrls.current.back,
+          cardFrontUrl: cardUrlState.front ?? null,
+          cardBackUrl: cardUrlState.back ?? null,
         });
       }
 
@@ -251,12 +250,11 @@ export default function ProfilePage() {
   }
 
   async function onCardChosen(side, file) {
-    const previousUrl = cardUrls.current[side];
+    const previousUrl = cardUrlState[side];
     setUploadingName((u) => ({ ...u, [side]: file.name }));
 
     try {
       const result = await api.uploads.document(file);
-      cardUrls.current[side] = result.url;
       setCardUrlState((s) => ({ ...s, [side]: result.url }));
       toast(
         (side === 'front' ? 'Front' : 'Back') +
@@ -264,7 +262,6 @@ export default function ProfilePage() {
         'success',
       );
     } catch (err) {
-      cardUrls.current[side] = previousUrl;
       setCardUrlState((s) => ({ ...s, [side]: previousUrl }));
       toast(err.message || 'Could not upload file.', 'error');
     } finally {

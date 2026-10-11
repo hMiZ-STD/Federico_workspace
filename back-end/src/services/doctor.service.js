@@ -112,7 +112,52 @@ function toMinutes(value) {
   return hours * 60 + minutes;
 }
 
-function isDoctorAvailableAt(doctor_id, date, time) {
+// Standard duty roster used when a doctor has no explicit availability rows
+// for a date: Monday–Friday, 09:00–17:00. The seed calendar only covers a
+// handful of dates, so without this default every real date was either
+// wide open (any hour, any day) or unbookable.
+const DUTY_DAYS = [1, 2, 3, 4, 5]; // getUTCDay(): Mon..Fri
+const DUTY_START_MINUTES = 9 * 60;
+const DUTY_END_MINUTES = 17 * 60;
+// Two bookings for the same doctor closer than this overlap.
+const SLOT_MINUTES = 30;
+
+function isWithinStandardDutyHours(dateKey, minutes) {
+  const day = new Date(dateKey + 'T00:00:00Z').getUTCDay();
+  return (
+    DUTY_DAYS.includes(day) &&
+    minutes >= DUTY_START_MINUTES &&
+    minutes < DUTY_END_MINUTES
+  );
+}
+
+/**
+ * An active appointment for this doctor overlapping `date` + `time`, or null.
+ * Reads appointment_date/appointment_time, falling back to scheduled_datetime
+ * (the seed appointments only carry the latter). `excludeId` skips the
+ * appointment being rescheduled.
+ */
+function findConflictingAppointment(doctor_id, date, time, excludeId = null) {
+  const doctorId = Number(doctor_id);
+  const dateKey = toDateKey(date);
+  const requestedMinutes = toMinutes(time);
+  if (!doctorId || !dateKey || requestedMinutes === null) return null;
+
+  return (
+    dataStore.appointments.find((appointment) => {
+      if (excludeId !== null && appointment.appointment_id === excludeId) return false;
+      if (Number(appointment.doctor_id) !== doctorId) return false;
+      if (['CANCELLED', 'COMPLETED'].includes(appointment.status)) return false;
+      if (toDateKey(appointment.appointment_date || appointment.scheduled_datetime) !== dateKey) return false;
+      const appointmentMinutes = toMinutes(
+        appointment.appointment_time || String(appointment.scheduled_datetime || '').slice(11, 16),
+      );
+      return appointmentMinutes !== null && Math.abs(appointmentMinutes - requestedMinutes) < SLOT_MINUTES;
+    }) || null
+  );
+}
+
+function isDoctorAvailableAt(doctor_id, date, time, excludeAppointmentId = null) {
   const doctorId = Number(doctor_id);
   const dateKey = toDateKey(date);
   const requestedMinutes = toMinutes(time);
@@ -127,6 +172,7 @@ function isDoctorAvailableAt(doctor_id, date, time) {
   );
 
   if (slots.length > 0) {
+    // Explicit calendar rows for this date override the standard roster.
     const coveredBySlot = slots.some((slot) => {
       if (String(slot.status || 'AVAILABLE').toUpperCase() !== 'AVAILABLE') return false;
       const start = toMinutes(slot.start_time);
@@ -134,17 +180,13 @@ function isDoctorAvailableAt(doctor_id, date, time) {
       return start !== null && end !== null && requestedMinutes >= start && requestedMinutes < end;
     });
     if (!coveredBySlot) return { available: false, message: UNAVAILABLE_MESSAGE };
+  } else if (!isWithinStandardDutyHours(dateKey, requestedMinutes)) {
+    return { available: false, message: UNAVAILABLE_MESSAGE };
   }
 
-  const conflict = dataStore.appointments.some((appointment) => {
-    if (Number(appointment.doctor_id) !== doctorId) return false;
-    if (['CANCELLED', 'COMPLETED'].includes(appointment.status)) return false;
-    if (toDateKey(appointment.appointment_date || appointment.scheduled_datetime) !== dateKey) return false;
-    const appointmentMinutes = toMinutes(appointment.appointment_time || String(appointment.scheduled_datetime || '').slice(11, 16));
-    return appointmentMinutes !== null && Math.abs(appointmentMinutes - requestedMinutes) < 30;
-  });
-
-  return conflict ? { available: false, message: UNAVAILABLE_MESSAGE } : { available: true, message: null };
+  return findConflictingAppointment(doctorId, dateKey, time, excludeAppointmentId)
+    ? { available: false, message: UNAVAILABLE_MESSAGE }
+    : { available: true, message: null };
 }
 
 function deleteAvailability(availability_id) {
@@ -165,6 +207,8 @@ module.exports = {
   findAvailabilityByDoctor,
   createAvailability,
   isDoctorAvailableAt,
+  findConflictingAppointment,
+  isWithinStandardDutyHours,
   UNAVAILABLE_MESSAGE,
   deleteAvailability,
 };

@@ -1,6 +1,6 @@
 'use strict';
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../../api/index.js';
 import { useApi } from '../../hooks/useApi.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
@@ -24,7 +24,7 @@ export default function DepartmentsPage() {
 
   const wards = data?.wards || [];
   const beds = data?.beds || [];
-  const bedsForWard = useCallback((wardId) => beds.filter((b) => b.ward_id === wardId), [beds]);
+  const bedsForWard = (wardId) => beds.filter((b) => b.ward_id === wardId);
 
   const totalBeds = beds.length;
   const occupied = beds.filter((b) => b.status === 'OCCUPIED').length;

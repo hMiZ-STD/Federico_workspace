@@ -1,6 +1,6 @@
 'use strict';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../../components/layout/Modal.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
@@ -16,7 +16,15 @@ import { itemCost, DEFAULT_RESTOCK_QUANTITY, MAX_NOTES_LENGTH } from './inventor
  * the whole submit, exactly as before.
  */
 export default function RestockModal({ open, initialItemId, data, onClose, onChanged }) {
-  const [itemId, setItemId] = useState('');
+  // Mounted only while open (re-keyed per item), so each opening starts fresh.
+  if (!open) return null;
+  return (
+    <RestockForm key={initialItemId ?? 'none'} initialItemId={initialItemId} data={data} onClose={onClose} onChanged={onChanged} />
+  );
+}
+
+function RestockForm({ initialItemId, data, onClose, onChanged }) {
+  const [itemId, setItemId] = useState(initialItemId ? String(initialItemId) : '');
   const [qty, setQty] = useState(String(DEFAULT_RESTOCK_QUANTITY));
   const [supplier, setSupplier] = useState('MediSupply Co.');
   const [priority, setPriority] = useState('normal');
@@ -24,20 +32,6 @@ export default function RestockModal({ open, initialItemId, data, onClose, onCha
   const [invoiceFile, setInvoiceFile] = useState(null);
   const [invoiceStatus, setInvoiceStatus] = useState('');
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!open) return;
-    setItemId(initialItemId ? String(initialItemId) : '');
-    setQty(String(DEFAULT_RESTOCK_QUANTITY));
-    setSupplier((s) => s || 'MediSupply Co.');
-    setPriority('normal');
-    setNotes('');
-    setInvoiceFile(null);
-    setInvoiceStatus('');
-    setError('');
-  }, [open, initialItemId]);
-
-  if (!open) return null;
 
   const item = data.items.find((i) => i.item_id === Number(itemId));
   const cost = itemCost(item, data.services);

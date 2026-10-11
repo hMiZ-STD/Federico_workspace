@@ -58,38 +58,6 @@ async function addCharge(ledgerId, serviceId, qty) {
   });
 }
 
-/**
- * DEFECT D6, preserved: this reads `#charge-admission`, `#charge-service` and
- * `#charge-qty`, none of which any FA view has ever rendered, and it was
- * exported on window.FAActions where nothing called it. It is unreachable dead
- * code and stays that way under constraint 1. The element lookups are kept
- * literal so the defect is visible rather than disguised.
- */
-export async function addChargeFromForm(ctx) {
-  const admissionId = Number(document.getElementById('charge-admission').value);
-  const serviceId = Number(document.getElementById('charge-service').value);
-  const qty = Number(document.getElementById('charge-qty').value);
-
-  if (!admissionId) return ctx.showFormError('charges-form-error', 'Select a patient before adding a charge.');
-  if (!serviceId) return ctx.showFormError('charges-form-error', 'Select a service before adding a charge.');
-
-  const { rows } = await loadBillingOverview();
-  const row = rows.find((r) => r.admission.admission_id === admissionId);
-  if (!row || !row.ledger) {
-    return ctx.showFormError(
-      'charges-form-error',
-      'This admission has no ledger yet — create one first from the Dashboard.',
-    );
-  }
-
-  try {
-    await addCharge(row.ledger.ledger_id, serviceId, qty);
-  } catch (err) {
-    return ctx.showFormError('charges-form-error', err.message || 'Unable to add charge.');
-  }
-  return ctx.reload();
-}
-
 export async function addChargeToCurrentLedger(ctx, admissionId, ledgerId, serviceId, qty) {
   if (!serviceId) {
     toast('Select a service before adding a charge.', 'warning');
@@ -337,7 +305,7 @@ export async function approveLeader(ctx, leaderId) {
   try {
     await api.billing.leaders.approve(leaderId);
     toast(
-      'Charge approved and posted to the patient ledger. Send the EOD bill from the EOD Billing tab when ready.',
+      'Charge approved and posted to the patient ledger. Send the EOD bill from the EOD & Settlement tab when ready.',
       'success',
     );
     await ctx.reload();

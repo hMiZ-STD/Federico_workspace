@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePatientStore } from './PatientStoreContext.jsx';
+import { usePatientStore } from './usePatientStore.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { forRole } from '../../lib/sanitizer.js';
 import { toast } from '../../components/feedback/feedback.js';
@@ -10,15 +10,10 @@ import AppointmentRows from './AppointmentRows.jsx';
 import VisitItems from './VisitItems.jsx';
 import DocumentGroup from './DocumentGroup.jsx';
 import AppointmentsModal from './AppointmentsModal.jsx';
-import VisitsModal from './VisitsModal.jsx';
-import BillsModal from './BillsModal.jsx';
+import { BillSummaryModal } from './BillDetailsModal.jsx';
 import { openDigitalCopy } from './patientDocumentCopy.js';
-import {
-  getEffectiveStatus,
-  BillStatusBadge,
-  pastVisits,
-  latestPastAppointment,
-} from './patientDashboardHelpers.jsx';
+import { BillStatusBadge } from './patientDashboardHelpers.jsx';
+import { getEffectiveStatus, pastVisits, latestPastAppointment } from './patientDashboardUtils.js';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import patientDashboardCss from '../../styles/patient/patient-dashboard.css?inline';
 
@@ -391,19 +386,24 @@ export default function DashboardPage() {
       </main>
 
       <AppointmentsModal
-        open={openModal === 'appointments'}
+        open={openModal === 'appointments' || openModal === 'visits'}
+        view={openModal === 'visits' ? 'visits' : 'appointments'}
         onClose={() => setOpenModal(null)}
         appointments={appointments}
+        visits={visits}
         onBookNew={() => {
           setOpenModal(null);
           navigate('/Patient/patient-book-appointment.html');
         }}
       />
-      <VisitsModal open={openModal === 'visits'} onClose={() => setOpenModal(null)} visits={visits} />
-      <BillsModal
+      <BillSummaryModal
         open={openModal === 'bills'}
         onClose={() => setOpenModal(null)}
         bills={bills}
+        onOpenBill={(bill) => {
+          setOpenModal(null);
+          navigate('/Patient/patient-billing.html?bill=' + encodeURIComponent(bill.id));
+        }}
         onGoToBilling={() => {
           setOpenModal(null);
           navigate('/Patient/patient-billing.html');

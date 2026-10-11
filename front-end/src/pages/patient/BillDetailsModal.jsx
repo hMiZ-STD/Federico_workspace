@@ -1,12 +1,102 @@
 'use strict';
 
 import Modal from '../../components/layout/Modal.jsx';
+import { forRole } from '../../lib/sanitizer.js';
+import { BillStatusBadge } from './patientDashboardHelpers.jsx';
+import { getEffectiveStatus } from './patientDashboardUtils.js';
 
 /**
- * The itemized invoice dialog. The legacy version reconfigured the Pay button's
- * text, opacity, cursor, disabled flag and onclick imperatively in openBillModal;
- * here the same three states are conditional JSX.
+ * The patient's two bill dialogs:
+ *
+ *  - BillDetailsModal (default)  the itemized invoice for one bill, on the
+ *                                Billing page.
+ *  - BillSummaryModal            the dashboard's "View All" list of bills
+ *                                (formerly BillsModal.jsx). Clicking a bill
+ *                                opens its itemized invoice directly.
+ *
+ * The legacy invoice reconfigured the Pay button's text, opacity, cursor,
+ * disabled flag and onclick imperatively in openBillModal; here the same
+ * three states are conditional JSX.
  */
+export function BillSummaryModal({ open, onClose, bills, onOpenBill, onGoToBilling }) {
+  const unpaid = bills.filter((b) => getEffectiveStatus(b) !== 'paid');
+  const totalOwed = unpaid.reduce((sum, b) => sum + b.youPay, 0);
+
+  return (
+    <Modal open={open} onClose={onClose} labelledBy="modal-bills-title">
+      <div className="dash-modal" role="dialog" aria-modal="true" aria-labelledby="modal-bills-title">
+        <div className="modal-head">
+          <h2 id="modal-bills-title">Bill Summary</h2>
+          <button className="modal-close" type="button" aria-label="Close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <div className="modal-body">
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bill No</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bills.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>
+                      No bills found.
+                    </td>
+                  </tr>
+                ) : (
+                  bills.map((bill) => {
+                    // The row text comes from the sanitised copy; the amount is
+                    // read off the original, exactly as the legacy code did.
+                    const safeBill = forRole(bill, 'PATIENT');
+                    return (
+                      <tr
+                        key={bill.id}
+                        style={{ cursor: 'pointer' }}
+                        tabIndex={0}
+                        title="View itemized invoice"
+                        onClick={() => onOpenBill(bill)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') onOpenBill(bill);
+                        }}
+                      >
+                        <td className="bill-id-cell">{safeBill.billNo}</td>
+                        <td>{safeBill.description}</td>
+                        <td>
+                          <strong>₹{bill.youPay.toLocaleString('en-IN')}</strong>
+                        </td>
+                        <td>{safeBill.dueDate}</td>
+                        <td>
+                          <BillStatusBadge status={getEffectiveStatus(bill)} />
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="modal-bill-total">
+            <span>Total Outstanding</span>
+            <strong>₹{totalOwed.toLocaleString('en-IN')}</strong>
+          </div>
+          <div className="modal-footer-action">
+            <button className="modal-book-btn" type="button" id="modal-go-bills" onClick={onGoToBilling}>
+              View Full Billing Page →
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export default function BillDetailsModal({ open, onClose, bill, onPay, onPrint }) {
   if (!bill) return null;
 

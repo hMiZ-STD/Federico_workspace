@@ -2,7 +2,8 @@
 
 import { Fragment } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { PatientStoreProvider, usePatientStore } from './PatientStoreContext.jsx';
+import { PatientStoreProvider } from './PatientStoreContext.jsx';
+import { usePatientStore } from './usePatientStore.js';
 import ModuleLock from '../../components/layout/ModuleLock.jsx';
 import { useSession } from '../../auth/useSession.js';
 import { toast } from '../../components/feedback/feedback.js';
