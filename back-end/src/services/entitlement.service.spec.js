@@ -126,7 +126,7 @@ describe('Entitlement enforcement (module + resource)', () => {
   });
 
   it('rejects login for deactivated staff accounts with 403 ACCOUNT_INACTIVE', async () => {
-    const user = dataStore.users.find((u) => u.email === 'rekha.pre@hosp.com');
+    const user = dataStore.users.find((u) => u.email === 'rekha.pre@citygen.com');
     expect(user).toBeDefined();
     const originalState = user.is_active;
 
@@ -134,7 +134,7 @@ describe('Entitlement enforcement (module + resource)', () => {
 
     const res = await request(app)
       .post('/auth/login')
-      .send({ email: 'rekha.pre@hosp.com', password: 'Pre@123', organization_id: 1 });
+      .send({ email: 'rekha.pre@citygen.com', password: 'Pre@123', organization_id: 1 });
 
     user.is_active = originalState;
 

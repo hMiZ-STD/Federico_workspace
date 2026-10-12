@@ -29,7 +29,8 @@ describe('E2E Hospital Patient Lifecycle & Multi-Tenancy Pipeline', () => {
       specialties: ['Cardiology', 'Orthopedics', 'General Medicine'],
       emergency_available: true,
       admin_name: 'CityCare Owner',
-      admin_email: 'admin@citycare.com',
+      email_domain: 'citycare.com',
+      admin_email: 'owner.admin@citycare.com',
       admin_password: 'Password@123',
     });
 

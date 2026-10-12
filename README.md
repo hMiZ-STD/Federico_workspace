@@ -42,12 +42,32 @@ In-Memory Store (dataStore.js) with Crash-Safe Atomic Disk Persistence (db.json)
 
 | Role | Entry Route | Key Responsibilities |
 | :--- | :--- | :--- |
-| **Platform Super User** | `/platform/platform-login.html` | Tenant provisioning, subscription plans, module flags, revenue tracking, and audit logs. |
+| **Platform Super User** | `/platform/platform-dashboard.html` | Tenant provisioning, subscription plans, module flags, revenue tracking, and audit logs. |
 | **Hospital Admin** | `/Admin/screen-01-dashboard.html` | Branch setup, custom dynamic RBAC roles, staff assignment, doctor catalog, and inventory catalogs. |
 | **Hospital Operations (HOM)** | `/HOM/screen-01-dashboard.html` | Real-time bed allocation, ward occupancy matrix, service charge logging, and medical discharge readiness. |
 | **Patient Registration (PRE)** | `/PRE/pages/PRE.html` | Pre-registration review, OPD appointments, emergency triage, and final administrative discharge. |
 | **Finance Associate (FA)** | `/FA/fa-dashboard.html` | Service charge approvals, manual charge entries, bill dispatch, payment processing, and receipts. |
 | **Patient** | `/Patient/patient-dashboard.html` | OPD specialist booking, insurance management, itemized bill review, and digital payments. |
+
+### One sign-in page for everyone
+
+Every actor signs in at `/login/login-page.html`. The page reads the portal from the email,
+so there are no role tabs and no separate platform login:
+
+| Email shape | Signs in to | Endpoint |
+| :--- | :--- | :--- |
+| `name.hom@<hospital domain>` | HOM portal of that hospital | `POST /auth/login/hom` |
+| `name.pre@<hospital domain>` | PRE portal | `POST /auth/login/pre` |
+| `name.fa@<hospital domain>` | FA portal | `POST /auth/login/fa` |
+| `name.admin@<hospital domain>` | Hospital Admin portal | `POST /auth/login/admin` |
+| `name.platform@federico.com` | Platform Super User console | `POST /platform/auth/login` |
+| anything else (personal email) | Patient portal (pick your hospital) | `POST /auth/login/patient` |
+
+Each hospital has a staff **email domain** (`citygen.com`, `apollo.com`, …). It is suggested from the
+hospital name at onboarding ("City General Hospital" → `citygen.com`), can be edited there, must be
+unique, and cannot be a public mail domain. Only a Platform Super User can change it later
+(Platform dashboard → Manage → Staff Email Domain), which renames every staff login on the old domain
+and signs those users out. A staff role change in Admin → People renames the email's tag to match.
 
 Signing in routes each role to its own portal automatically. The full route table is
 in [`front-end/README.md`](front-end/README.md).
@@ -102,13 +122,15 @@ table.
 
 ## Demo Credentials
 
+All of these sign in at `/login/login-page.html` (City General Hospital = `citygen.com`, Apollo = `apollo.com`).
+
 | Role | Email | Password |
 | :--- | :--- | :--- |
-| **Platform Super User** | `platform@federico.com` | `Federico@Platform123` |
-| **Hospital Admin** | `owner@hosp.com` | `Owner@123` |
-| **Hospital Operations (HOM)** | `admin@hosp.com` | `Hom@123` |
-| **Patient Registration (PRE)** | `rekha.pre@hosp.com` | `Pre@123` |
-| **Finance Associate (FA)** | `farah.fa@hosp.com` | `Fa@123` |
+| **Platform Super User** | `super.platform@federico.com` | `Federico@Platform123` |
+| **Hospital Admin** | `owner.admin@citygen.com` | `Owner@123` |
+| **Hospital Operations (HOM)** | `admin.hom@citygen.com` | `Hom@123` |
+| **Patient Registration (PRE)** | `rekha.pre@citygen.com` | `Pre@123` |
+| **Finance Associate (FA)** | `farah.fa@citygen.com` | `Fa@123` |
 | **Patient** | `arjun.k@hosp.com` | `Hamiz@123` |
 
 ---

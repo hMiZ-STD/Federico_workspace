@@ -71,7 +71,7 @@ working.
 
 | URL | Page |
 |---|---|
-| `/platform/platform-login.html` | Platform sign-in (separate auth realm) |
+| `/platform/platform-login.html` | Redirects to the unified sign-in page (platform staff sign in as `name.platform@federico.com`) |
 | `/platform/platform-dashboard.html` | Tenants, provisioning, plan rates |
 
 ### HOM — Hospital Operations Manager
@@ -181,12 +181,15 @@ Seed accounts, organization 1 ("City General Hospital"):
 
 | Role | Email | Password |
 |---|---|---|
-| Admin | `owner@hosp.com` | `Owner@123` |
-| HOM | `admin@hosp.com` | `Hom@123` |
-| PRE | `rekha.pre@hosp.com` | `Pre@123` |
-| FA | `farah.fa@hosp.com` | `Fa@123` |
+| Admin | `owner.admin@citygen.com` | `Owner@123` |
+| HOM | `admin.hom@citygen.com` | `Hom@123` |
+| PRE | `rekha.pre@citygen.com` | `Pre@123` |
+| FA | `farah.fa@citygen.com` | `Fa@123` |
 | Patient | `arjun.k@hosp.com` | `Hamiz@123` |
-| Platform | `platform@federico.com` | `Federico@Platform123` |
+| Platform | `super.platform@federico.com` | `Federico@Platform123` |
 
-The sign-in page lists the demo credentials for the selected role and
-organization; clicking a row fills the form.
+There is one sign-in page for every actor. It reads the portal from the
+email (`name.hom@`, `.pre@`, `.fa@`, `.admin@` on the hospital's email domain,
+`name.platform@federico.com`; anything else is a patient, who then picks a
+hospital). The logic lives in `src/lib/emailIdentity.js`. The demo panel lists
+each hospital's accounts; clicking a row fills the form.

@@ -16,6 +16,12 @@ router.post(
   controller.login,
 );
 router.post(
+  '/login/:actor',
+  authRateLimiter,
+  validateBody(loginRules),
+  controller.loginAsActor,
+);
+router.post(
   '/signup',
   authRateLimiter,
   validateBody(signupRules),

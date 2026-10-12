@@ -3,6 +3,7 @@
 const authService = require('../services/auth.service');
 const entitlementService = require('../services/entitlement.service');
 const { createLogger } = require('../utils/logger');
+const { ACTOR_SLUG_TO_ROLE } = require('../utils/roles');
 
 const logger = createLogger('🔐 Auth');
 
@@ -23,6 +24,11 @@ const LOGIN_ERROR_RESPONSES = {
     'This account has been deactivated by your administrator',
     'Forbidden',
   ],
+  WRONG_PORTAL: [
+    403,
+    'This account does not belong to that portal',
+    'Forbidden',
+  ],
 };
 
 const { extractToken } = require('../middleware/session');
@@ -35,9 +41,7 @@ function clearSessionCookie(res) {
   res.setHeader('Set-Cookie', 'sessionId=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax');
 }
 
-function login(req, res) {
-  const { email, password, organization_id } = req.body;
-  const result = authService.login(email, password, organization_id);
+function respondToLogin(res, email, result) {
   if (result.error) {
     const [status, message, error] =
       LOGIN_ERROR_RESPONSES[result.error] ||
@@ -54,8 +58,45 @@ function login(req, res) {
   res.status(200).json(result);
 }
 
+/** Legacy shared endpoint: POST /auth/login signs in any actor. */
+function login(req, res) {
+  const { email, password, organization_id } = req.body;
+  respondToLogin(
+    res,
+    email,
+    authService.login(email, password, organization_id),
+  );
+}
+
+/**
+ * POST /auth/login/:actor — the endpoint the unified login page calls once it
+ * has read the actor from the email. Rejects accounts of any other role.
+ */
+function loginAsActor(req, res) {
+  const expectedRole =
+    ACTOR_SLUG_TO_ROLE[String(req.params.actor).toLowerCase()];
+  if (!expectedRole) {
+    return res.status(404).json({
+      message: `Unknown portal "${req.params.actor}"`,
+      error: 'Not Found',
+      statusCode: 404,
+    });
+  }
+  const { email, password, organization_id } = req.body;
+  respondToLogin(
+    res,
+    email,
+    authService.login(email, password, organization_id, expectedRole),
+  );
+}
+
 const SIGNUP_ERROR_RESPONSES = {
   EMAIL_TAKEN: [409, 'Email already registered', 'Conflict'],
+  EMAIL_RESERVED: [
+    400,
+    'This address format is reserved for hospital staff. Please use your personal email.',
+    'Bad Request',
+  ],
   INVALID_ORGANIZATION: [
     400,
     'Selected organization is not available',
@@ -118,4 +159,4 @@ function entitlements(req, res) {
   res.status(200).json(entitlementService.entitlementsFor(organizationId));
 }
 
-module.exports = { login, signup, me, logout, entitlements };
+module.exports = { login, loginAsActor, signup, me, logout, entitlements };

@@ -4,25 +4,35 @@ import { useState } from 'react';
 import Modal from '../../components/layout/Modal.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
+import TaggedEmailInput from '../../components/forms/TaggedEmailInput.jsx';
+import { ACTOR_TO_TAG, buildTaggedEmail } from '../../lib/emailIdentity.js';
 
 /** Ported from the #staff-dialog <dialog> in Admin/screen-05-people.html. */
-const BLANK = { name: '', email: '', password: '', actor_role: 'HOM' };
+const BLANK = { name: '', emailName: '', email: '', password: '', actor_role: 'HOM' };
 
-export default function StaffDialog({ open, onClose, onSaved }) {
+/**
+ * `emailDomain` is the organization's staff domain (session tenant). With it,
+ * the login email is built as name.<role>@<domain> - the shape the unified
+ * login page reads the portal and hospital from. Without it (a session from
+ * before email domains existed) the email is typed in full and the server
+ * checks the shape.
+ */
+export default function StaffDialog({ open, emailDomain, onClose, onSaved }) {
   // Mounted only while open, so every opening starts from a blank form.
   if (!open) return null;
-  return <StaffForm onClose={onClose} onSaved={onSaved} />;
+  return <StaffForm emailDomain={emailDomain} onClose={onClose} onSaved={onSaved} />;
 }
 
-function StaffForm({ onClose, onSaved }) {
+function StaffForm({ emailDomain, onClose, onSaved }) {
   const [f, setF] = useState(BLANK);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const tag = ACTOR_TO_TAG[f.actor_role];
     const payload = {
       name: f.name.trim(),
-      email: f.email.trim(),
+      email: emailDomain ? buildTaggedEmail(f.emailName, tag, emailDomain) || '' : f.email.trim(),
       password: f.password,
       actor_role: f.actor_role,
     };
@@ -51,7 +61,17 @@ function StaffForm({ onClose, onSaved }) {
           </div>
           <div className="md-field">
             <label htmlFor="staff-email">Login email</label>
-            <input id="staff-email" type="email" required placeholder="name@yourhospital.com" value={f.email} onChange={set('email')} />
+            {emailDomain ? (
+              <TaggedEmailInput
+                id="staff-email"
+                value={f.emailName}
+                onChange={(v) => setF((p) => ({ ...p, emailName: v }))}
+                tag={ACTOR_TO_TAG[f.actor_role]}
+                domain={emailDomain}
+              />
+            ) : (
+              <input id="staff-email" type="email" required placeholder="name.hom@yourhospital.com" value={f.email} onChange={set('email')} />
+            )}
           </div>
           <div className="md-field">
             <label htmlFor="staff-password">Temporary password</label>
@@ -66,8 +86,9 @@ function StaffForm({ onClose, onSaved }) {
             </select>
           </div>
           <p className="cred-hint">
-            Share the email + temporary password with the person. They sign in at the login page and
-            pick their portal role.
+            Share the email + temporary password with the person. They sign in at the login page,
+            which opens their portal from the role in the email. Changing their role later renames
+            the email to match.
           </p>
           <div className="md-dialog-actions">
             <button type="button" className="btn btn-outline btn-default" id="staff-cancel" onClick={onClose}>Cancel</button>

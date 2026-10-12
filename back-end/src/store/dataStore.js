@@ -27,7 +27,7 @@ const dataStore = {
     {
       "user_id": 101,
       "name": "Admin User",
-      "email": "admin@hosp.com",
+      "email": "admin.hom@citygen.com",
       "password_hash": "$2a$10$nilm1vg5pIZ9C5i9gz.hwOB/WMWSzXvRinSsrnqwV1QqT2pZTS5R2",
       "role_id": 1,
       "created_at": "2026-03-01 10:00:00",
@@ -67,7 +67,7 @@ const dataStore = {
     {
       "user_id": 105,
       "name": "Rekha Nair",
-      "email": "rekha.pre@hosp.com",
+      "email": "rekha.pre@citygen.com",
       "password_hash": "$2a$10$GBx3dZtybae0OQeNKKYZf.s52vAY8MiW6007MZP.No9epNmPyzIW.",
       "role_id": 4,
       "created_at": "2026-03-02 11:30:00",
@@ -77,7 +77,7 @@ const dataStore = {
     {
       "user_id": 106,
       "name": "Farah Ansari",
-      "email": "farah.fa@hosp.com",
+      "email": "farah.fa@citygen.com",
       "password_hash": "$2a$10$1TCl4eaJ1gCM4AeahNrK9eG0W7Pd0cQNY1OuUms02YwgHBWuztx3u",
       "role_id": 3,
       "created_at": "2026-03-02 11:30:00",
@@ -87,7 +87,7 @@ const dataStore = {
     {
       "user_id": 107,
       "name": "Apollo Admin",
-      "email": "admin@apollo.hosp.com",
+      "email": "admin.hom@apollo.com",
       "password_hash": "$2a$10$hHydnUrsgmTkT/odpz7PROXGvFmkg.MqYjSckfR9bKqxWDPftyKwG",
       "role_id": 1,
       "created_at": "2026-08-18T11:39:52.382Z",
@@ -97,7 +97,7 @@ const dataStore = {
     {
       "user_id": 108,
       "name": "Priya Krishnan",
-      "email": "priya.pre@apollo.hosp.com",
+      "email": "priya.pre@apollo.com",
       "password_hash": "$2a$10$K6IqVEqsEkiAU9I3LrRhDuEYVGXfSOCcgs8iRgxIeLjy1fnOv5Zbi",
       "role_id": 4,
       "created_at": "2026-08-18T11:39:52.443Z",
@@ -107,7 +107,7 @@ const dataStore = {
     {
       "user_id": 109,
       "name": "Rajesh Iyer",
-      "email": "rajesh.fa@apollo.hosp.com",
+      "email": "rajesh.fa@apollo.com",
       "password_hash": "$2a$10$W6Naf/.A2/64ISvw7LELheBgAoEhdZbTflczM01NSvxQJL2o05DBu",
       "role_id": 3,
       "created_at": "2026-08-18T11:39:52.503Z",
@@ -127,7 +127,7 @@ const dataStore = {
     {
       "user_id": 111,
       "name": "Billing Assist (PRE)",
-      "email": "billing.assist@hosp.com",
+      "email": "billing.assist.pre@citygen.com",
       "password_hash": "$2a$10$Sitz6pXNiGT/0TMeuz0DDuoNFXrD2aGTCRgp8r6NizmnJzC5Wy4oi",
       "role_id": 4,
       "created_at": "2026-08-18T11:39:52.623Z",
@@ -137,7 +137,7 @@ const dataStore = {
     {
       "user_id": 112,
       "name": "Hospital Owner",
-      "email": "owner@hosp.com",
+      "email": "owner.admin@citygen.com",
       "password_hash": "$2a$10$B9QNnSMVanxRIv/.9cNlsuNIo9Fx1R0pghrEZgUaqwAyDRAnLjiFW",
       "role_id": 5,
       "created_at": "2026-08-18T11:39:52.700Z",
@@ -147,7 +147,7 @@ const dataStore = {
     {
       "user_id": 113,
       "name": "Apollo Owner",
-      "email": "owner@apollo.hosp.com",
+      "email": "owner.admin@apollo.com",
       "password_hash": "$2a$10$NQq6rwiaDzJs0moUTtv9teuzE864rV4vbnYnuyxnAMJzmizUfvOo2",
       "role_id": 5,
       "created_at": "2026-08-18T11:39:52.700Z",
@@ -6622,6 +6622,7 @@ const dataStore = {
       "organization_id": 1,
       "name": "City General Hospital",
       "slug": "city-general",
+      "email_domain": "citygen.com",
       "status": "ACTIVE",
       "branding": {
         "initial": "C",
@@ -6648,6 +6649,7 @@ const dataStore = {
       "organization_id": 2,
       "name": "Apollo Hospitals",
       "slug": "apollo-hospitals",
+      "email_domain": "apollo.com",
       "status": "ACTIVE",
       "branding": {
         "initial": "A",
@@ -7043,7 +7045,7 @@ const dataStore = {
     {
       "platform_user_id": 1,
       "name": "Federico Platform Ops",
-      "email": "platform@federico.com",
+      "email": "super.platform@federico.com",
       "password_hash": "$2a$10$0YITUBmB/wwdleThDe30M.r3abIatIN4BX4SQSnJfjjsMsvEu00l2",
       "created_at": "2026-08-18T11:39:52.322Z"
     }
@@ -7086,7 +7088,7 @@ const dataStore = {
       "organization_id": 2,
       "step": "CREATE_DEFAULT_ADMIN",
       "status": "DONE",
-      "message": "Default admin account created (admin@apollo.hosp.com)",
+      "message": "Default admin account created (admin.hom@apollo.com)",
       "created_at": "2026-08-18T11:39:52.382Z"
     },
     {

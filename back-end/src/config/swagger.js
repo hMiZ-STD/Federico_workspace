@@ -23,7 +23,8 @@ const ROUTES = [
   ['PreRequests', 'put', '/pre-requests/{id}', 'Transition or update a pre-registration request'],
 
   // Auth
-  ['Auth', 'post', '/auth/login', 'User login authentication'],
+  ['Auth', 'post', '/auth/login', 'User login authentication (legacy, any role)'],
+  ['Auth', 'post', '/auth/login/{actor}', 'Unified-login portal endpoint (hom, pre, fa, admin, patient); 403 for an account of another role'],
   ['Auth', 'post', '/auth/signup', 'Patient self-service signup'],
   ['Auth', 'get', '/auth/me', 'Get currently authenticated user session'],
   ['Auth', 'post', '/auth/logout', 'User logout and session invalidation'],
@@ -122,6 +123,8 @@ const ROUTES = [
   ['Platform', 'get', '/platform/organizations', 'List all organizations'],
   ['Platform', 'post', '/platform/organizations', 'Provision a new organization'],
   ['Platform', 'get', '/platform/organizations/{id}', 'Get an organization by ID'],
+  ['Platform', 'get', '/platform/organizations/{id}/email-domain', 'Staff email domain and how many logins a change would rename'],
+  ['Platform', 'patch', '/platform/organizations/{id}/email-domain', 'Change the staff email domain; renames staff/admin logins and signs them out'],
   ['Platform', 'put', '/platform/organizations/{id}/suspend', 'Suspend an organization'],
   ['Platform', 'put', '/platform/organizations/{id}/activate', 'Activate an organization'],
   ['Platform', 'delete', '/platform/organizations/{id}', 'Delete (soft) an organization'],
@@ -196,7 +199,7 @@ function buildDocument() {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Session bearer token obtained from /auth/login or /platform/auth/login',
+          description: 'Session bearer token obtained from /auth/login/{actor}, /auth/login or /platform/auth/login',
         },
         xRoleAuth: {
           type: 'apiKey',

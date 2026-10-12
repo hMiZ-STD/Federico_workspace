@@ -37,53 +37,46 @@ export const actorProfiles = {
 };
 
 /**
- * Demo credentials for the login page's helper panel, keyed by organization_id
- * because a role's demo login differs by which hospital is selected.
+ * Demo credentials for the login page's helper panel, keyed by organization_id.
+ * Staff follow the unified-login convention name.<role>@<hospital domain>
+ * (citygen.com = org 1, apollo.com = org 2); patients use personal emails.
  */
 export const mockAccountsByOrg = {
   1: {
-    Admin: [{ email: 'owner@hosp.com', password: 'Owner@123', displayName: 'Hospital Owner' }],
+    Admin: [{ email: 'owner.admin@citygen.com', password: 'Owner@123', displayName: 'Hospital Owner' }],
+    HOM: [{ email: 'admin.hom@citygen.com', password: 'Hom@123', displayName: 'Admin User' }],
+    PRE: [
+      { email: 'rekha.pre@citygen.com', password: 'Pre@123', displayName: 'Rekha Nair' },
+      {
+        email: 'billing.assist.pre@citygen.com',
+        password: 'Assist@123',
+        displayName: 'Billing Assist (custom-role demo)',
+      },
+    ],
+    FA: [{ email: 'farah.fa@citygen.com', password: 'Fa@123', displayName: 'Farah Ansari' }],
     Patient: [
       { email: 'arjun.k@hosp.com', password: 'Hamiz@123', displayName: 'Arjun Kapoor' },
       { email: 'priyanka.n@hosp.com', password: 'Salma@123', displayName: 'Priyanka Nair' },
       { email: 'rohan.m@hosp.com', password: 'John@123', displayName: 'Rohan Mehta' },
     ],
-    PRE: [
-      { email: 'rekha.pre@hosp.com', password: 'Pre@123', displayName: 'Rekha Nair' },
-      {
-        email: 'billing.assist@hosp.com',
-        password: 'Assist@123',
-        displayName: 'Billing Assist (custom-role demo)',
-      },
-    ],
-    HOM: [{ email: 'admin@hosp.com', password: 'Hom@123', displayName: 'Admin User' }],
-    FA: [{ email: 'farah.fa@hosp.com', password: 'Fa@123', displayName: 'Farah Ansari' }],
   },
   2: {
-    Admin: [
-      { email: 'owner@apollo.hosp.com', password: 'Apollo@123', displayName: 'Apollo Owner' },
-    ],
+    Admin: [{ email: 'owner.admin@apollo.com', password: 'Apollo@123', displayName: 'Apollo Owner' }],
+    HOM: [{ email: 'admin.hom@apollo.com', password: 'Apollo@123', displayName: 'Apollo Admin' }],
+    PRE: [{ email: 'priya.pre@apollo.com', password: 'Apollo@123', displayName: 'Priya Krishnan' }],
+    FA: [{ email: 'rajesh.fa@apollo.com', password: 'Apollo@123', displayName: 'Rajesh Iyer' }],
     Patient: [
       { email: 'meera@apollo.hosp.com', password: 'Apollo@123', displayName: 'Meera Subramaniam' },
     ],
-    PRE: [
-      { email: 'priya.pre@apollo.hosp.com', password: 'Apollo@123', displayName: 'Priya Krishnan' },
-    ],
-    HOM: [{ email: 'admin@apollo.hosp.com', password: 'Apollo@123', displayName: 'Apollo Admin' }],
-    FA: [{ email: 'rajesh.fa@apollo.hosp.com', password: 'Apollo@123', displayName: 'Rajesh Iyer' }],
   },
 };
 
-/**
- * Falls back to organization 1's accounts for an org the panel doesn't know
- * (e.g. a freshly provisioned one), showing the shape rather than nothing.
- * Returns null for a known-but-unlisted org id, which the login page renders as
- * its "no pre-configured demo users" message.
- */
-export function mockAccountsFor(organizationId) {
-  if (!organizationId) return mockAccountsByOrg[1];
-  return mockAccountsByOrg[organizationId] || null;
-}
+/** Platform Super User demo login (the platform console's own realm). */
+export const PLATFORM_DEMO_ACCOUNT = {
+  email: 'super.platform@federico.com',
+  password: 'Federico@Platform123',
+  displayName: 'Platform Super User',
+};
 
 export function getProfile(actor) {
   return actorProfiles[actor] || null;

@@ -11,6 +11,7 @@ const provisionOrganizationRules = [
   { field: 'admin_email', checks: ['isNotEmpty', 'isEmail'] },
   { field: 'admin_password', checks: ['isNotEmpty', 'isString'] },
   { field: 'plan_id', checks: ['isNotEmpty', 'isInt'] },
+  { field: 'email_domain', checks: ['isString'], optional: true },
   { field: 'city', checks: ['isString'], optional: true },
   { field: 'emergency_available', checks: ['isBoolean'], optional: true },
 ];
@@ -41,6 +42,10 @@ const createPlanRules = [
   { field: 'price_monthly', checks: ['isNotEmpty', 'isNumber'] },
 ];
 
+const changeEmailDomainRules = [
+  { field: 'email_domain', checks: ['isNotEmpty', 'isString'] },
+];
+
 const setSubscriptionRules = [
   { field: 'plan_id', checks: ['isNotEmpty', 'isInt'] },
 ];
@@ -53,4 +58,5 @@ module.exports = {
   createApiKeyRules,
   createPlanRules,
   setSubscriptionRules,
+  changeEmailDomainRules,
 };

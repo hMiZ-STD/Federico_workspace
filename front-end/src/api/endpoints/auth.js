@@ -3,21 +3,25 @@
 import { request } from '../client.js';
 import { setSession, clearSession } from '../session.js';
 import { withNormalizedPhones } from '../../lib/phone.js';
+import { ACTOR_LOGIN_SLUG } from '../../lib/emailIdentity.js';
 
 export const auth = {
   /**
-   * POST /auth/login. The session written here mirrors the legacy client
-   * exactly, including the fields the backend never actually returns
-   * (organizationId, hospitalId, orgName - see defect D12). rbac's
-   * authenticate() overwrites this session immediately afterwards, which is
-   * why the dead fields never mattered.
+   * POST /auth/login/:actor - the portal the unified login page read from the
+   * email's tag (ACTOR_LOGIN_SLUG); the server rejects any other role. The
+   * session written here mirrors the legacy client exactly, including the
+   * fields the backend never actually returns (organizationId, hospitalId,
+   * orgName - see defect D12). rbac's authenticate() overwrites this session
+   * immediately afterwards, which is why the dead fields never mattered.
    */
-  async login(email, password, organizationId) {
+  async login(actor, email, password, organizationId) {
+    const slug = ACTOR_LOGIN_SLUG[actor];
+    if (!slug) throw new Error('Unknown portal: ' + actor);
     const body = { email, password };
     if (organizationId !== undefined && organizationId !== null) {
       body.organization_id = organizationId;
     }
-    const payload = await request('POST', '/auth/login', body, { auth: false });
+    const payload = await request('POST', '/auth/login/' + slug, body, { auth: false });
     if (payload && payload.token) {
       setSession({
         token: payload.token,

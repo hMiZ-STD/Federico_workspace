@@ -9,6 +9,7 @@ const entitlementService = require('./entitlement.service');
 const { hashPassword, verifyPassword } = require('../utils/password');
 const { createSession, destroySession } = require('../store/sessionStore');
 const { ROLE_ID_TO_NAME } = require('../utils/roles');
+const { parseEmail, PLATFORM_EMAIL_DOMAIN } = require('../utils/emailIdentity');
 
 function roleNameFor(user) {
   return ROLE_ID_TO_NAME[user.role_id] || null;
@@ -56,6 +57,7 @@ function tenantContextFor(user) {
     organization_id: organization.organization_id,
     hospital_id: user.hospital_id || null,
     organization_name: organization.name,
+    email_domain: organization.email_domain || null,
     branding: organization.branding,
     // Back-compat: the array of enabled codes the frontend already reads.
     enabled_modules: enabledModules,
@@ -73,8 +75,12 @@ function tenantContextFor(user) {
  * organization so a patient can't be logged into an org their account
  * doesn't belong to. Staff accounts (who only ever belong to one org)
  * simply have it ignored if omitted.
+ *
+ * `expectedRole`: optional. Set by the per-actor endpoints
+ * (POST /auth/login/:actor) so an account can only sign in through its own
+ * portal. Checked after the password, so a wrong guess never reveals a role.
  */
-function login(email, password, requestedOrganizationId) {
+function login(email, password, requestedOrganizationId, expectedRole) {
   const user = findUserByEmail(email);
   if (!user || !verifyPassword(password, user.password_hash)) {
     return { error: 'INVALID_CREDENTIALS' };
@@ -94,6 +100,9 @@ function login(email, password, requestedOrganizationId) {
   }
 
   const role = roleNameFor(user);
+  if (expectedRole && role !== expectedRole) {
+    return { error: 'WRONG_PORTAL' };
+  }
   const patient = role === 'Patient' ? findPatientForUser(user.user_id) : null;
   const token = createSession({
     userId: user.user_id,
@@ -119,9 +128,27 @@ function login(email, password, requestedOrganizationId) {
   };
 }
 
+/**
+ * True for an address the unified login page would route to a staff or
+ * platform portal: tagged (.hom/.pre/.fa/.admin/.platform) AND on a hospital's
+ * or the platform's domain. Patients can't register those. A tag on any other
+ * domain (mohammed.fa@gmail.com) is just a personal email.
+ */
+function isReservedStaffEmail(email) {
+  const parsed = parseEmail(email);
+  if (!parsed || !parsed.tag) return false;
+  return (
+    parsed.domain === PLATFORM_EMAIL_DOMAIN ||
+    Boolean(organizationService.findByEmailDomain(parsed.domain))
+  );
+}
+
 function signup(payload) {
   if (findUserByEmail(payload.email)) {
     return { error: 'EMAIL_TAKEN' };
+  }
+  if (isReservedStaffEmail(payload.email)) {
+    return { error: 'EMAIL_RESERVED' };
   }
   const organization = organizationService.findById(payload.organization_id);
   if (!organization || organization.status !== 'ACTIVE') {
@@ -217,6 +244,7 @@ module.exports = {
   logout,
   findUserByEmail,
   findPatientForUser,
+  isReservedStaffEmail,
   roleNameFor,
   tenantContextFor,
 };

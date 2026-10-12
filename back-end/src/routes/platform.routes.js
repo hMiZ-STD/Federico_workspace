@@ -13,6 +13,7 @@ const {
   createApiKeyRules,
   createPlanRules,
   setSubscriptionRules,
+  changeEmailDomainRules,
 } = require('../validators/platform.validators');
 
 const router = Router();
@@ -37,6 +38,17 @@ router.post(
   controller.createOrganization,
 );
 router.get('/organizations/:id', ...gate, controller.findOrganization);
+router.get(
+  '/organizations/:id/email-domain',
+  ...gate,
+  controller.emailDomainImpact,
+);
+router.patch(
+  '/organizations/:id/email-domain',
+  ...gate,
+  validateBody(changeEmailDomainRules),
+  controller.changeEmailDomain,
+);
 router.put(
   '/organizations/:id/suspend',
   ...gate,

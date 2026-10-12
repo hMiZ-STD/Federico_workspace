@@ -40,6 +40,16 @@ export const platform = {
     remove(id) {
       return request('DELETE', '/platform/organizations/' + id);
     },
+    /** { email_domain, staff_logins } - how many logins a domain change renames. */
+    emailDomainImpact(id) {
+      return request('GET', '/platform/organizations/' + id + '/email-domain');
+    },
+    /** Renames every staff/admin login of the org onto the new domain. */
+    changeEmailDomain(id, emailDomain) {
+      return request('PATCH', '/platform/organizations/' + id + '/email-domain', {
+        email_domain: emailDomain,
+      });
+    },
     provisioningLog(id) {
       return request('GET', '/platform/organizations/' + id + '/provisioning-log');
     },

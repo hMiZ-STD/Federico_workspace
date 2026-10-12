@@ -133,9 +133,25 @@ const STAFF_CREATE_ERRORS = {
   EMAIL_TAKEN: [409, 'That email is already registered', 'Conflict'],
 };
 
+/** Staff emails must be name.<role>@<the hospital's domain> (unified login). */
+function staffEmailMessage(result) {
+  const tag = String(result.role || '').toLowerCase();
+  return `${result.role} staff emails must look like name.${tag}@${result.email_domain || 'yourhospital.com'}`;
+}
+
 function createStaff(req, res) {
   const result = rbacService.createStaffUser(req.tenant.organizationId, req.body);
   if (result && result.error) {
+    if (
+      result.error === 'EMAIL_ROLE_MISMATCH' ||
+      result.error === 'EMAIL_DOMAIN_MISMATCH'
+    ) {
+      return res.status(400).json({
+        message: staffEmailMessage(result),
+        error: 'Bad Request',
+        statusCode: 400,
+      });
+    }
     const [status, message, error] =
       STAFF_CREATE_ERRORS[result.error] || STAFF_CREATE_ERRORS.INVALID_ROLE;
     return res.status(status).json({ message, error, statusCode: status });
@@ -179,7 +195,14 @@ function setStaffRole(req, res) {
   if (!targetUser) return res.status(403).json(FORBIDDEN);
   const result = rbacService.setStaffRole(targetUser.user_id, req.body.actor_role);
   if (result && result.error) {
-    const [status, message, error] = STAFF_CREATE_ERRORS.INVALID_ROLE;
+    const [status, message, error] =
+      result.error === 'EMAIL_TAKEN'
+        ? [
+            409,
+            'Changing the role renames the login email, and that address is already registered',
+            'Conflict',
+          ]
+        : STAFF_CREATE_ERRORS.INVALID_ROLE;
     return res.status(status).json({ message, error, statusCode: status });
   }
   // Live sessions carry the old role; make the change effective now.

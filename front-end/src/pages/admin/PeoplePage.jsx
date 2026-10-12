@@ -33,7 +33,8 @@ const STAFF_ROLES = [
  */
 export default function PeoplePage() {
   useDocumentTitle('People | Federico Hospital Admin');
-  const { hasModule } = useSession();
+  const { hasModule, tenant } = useSession();
+  const emailDomain = tenant?.email_domain || null;
   const doctorModule = hasModule('DOCTOR');
 
   const [staffDialogOpen, setStaffDialogOpen] = useState(false);
@@ -79,8 +80,12 @@ export default function PeoplePage() {
   async function changeRole(member, nextRole) {
     if (nextRole === member.actor_role) return;
     try {
-      await api.rbac.setStaffRole(member.user_id, nextRole);
-      toast(member.name + ' is now ' + nextRole + '. They will sign in to the ' + nextRole + ' portal.', 'success');
+      const updated = await api.rbac.setStaffRole(member.user_id, nextRole);
+      // The login email's tag follows the role (rekha.pre@ → rekha.hom@).
+      toast(
+        member.name + ' is now ' + nextRole + '. They now sign in as ' + (updated?.email || member.email) + '.',
+        'success',
+      );
       await loadStaff();
     } catch (err) {
       toast(err.message || 'Could not change this role.', 'error');
@@ -115,6 +120,12 @@ export default function PeoplePage() {
             Add staff logins for your organization and manage doctors by department. Staff sign in
             to their own portal with the email and password you set here.
           </p>
+          {emailDomain && (
+            <p className="body-text" style={{ marginTop: 4 }}>
+              Staff email domain: <strong>@{emailDomain}</strong> {'—'} logins look like{' '}
+              <code>name.hom@{emailDomain}</code>. Only Federico platform staff can change the domain.
+            </p>
+          )}
         </div>
       </div>
 
@@ -243,7 +254,12 @@ export default function PeoplePage() {
 
       <BrandingCard />
 
-      <StaffDialog open={staffDialogOpen} onClose={() => setStaffDialogOpen(false)} onSaved={loadStaff} />
+      <StaffDialog
+        open={staffDialogOpen}
+        emailDomain={emailDomain}
+        onClose={() => setStaffDialogOpen(false)}
+        onSaved={loadStaff}
+      />
       <DoctorDialog
         open={editingDoctorId !== undefined}
         doctor={editingDoctorId ? (doctors || []).find((d) => d.doctor_id === editingDoctorId) : null}

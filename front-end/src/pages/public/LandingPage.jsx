@@ -74,14 +74,6 @@ export default function LandingPage() {
               >
                 Browse Hospitals
               </button>
-              <button
-                id="platform-btn"
-                className="primary-btn"
-                type="button"
-                onClick={() => navigate('/platform/platform-login.html')}
-              >
-                Platform Super User
-              </button>
             </div>
           </div>
 
@@ -169,16 +161,6 @@ export default function LandingPage() {
 
       <footer className="site-footer">
         <span>{'©'} 2026 Federico Cloud Platform</span>
-        <a
-          href="/platform/platform-login.html"
-          className="footer-admin-link"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/platform/platform-login.html');
-          }}
-        >
-          Federico staff {'—'} Platform Admin
-        </a>
       </footer>
     </>
   );

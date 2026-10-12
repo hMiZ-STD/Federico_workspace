@@ -28,26 +28,52 @@ export function SessionProvider({ children }) {
   const actor = (session && session.actor) || '';
 
   /**
-   * Ported from shared/rbac.js#authenticate. Returns the profile bundle on
+   * Unified login. The portal comes from the email's tag (name.hom@ → HOM),
+   * resolved against the public org list by the login page's
+   * resolveLoginIdentity(); `actor` is that result. Returns { actor, ... } on
    * success or null on failure, with the reason in lastAuthError - the same
    * truthy/falsy contract the login page already branches on.
    */
-  const authenticate = useCallback(async (requestedActor, email, password, organizationId) => {
+  const authenticate = useCallback(async (actor, email, password, organizationId) => {
     setLastAuthError(null);
     try {
-      const result = await api.auth.login(email, password, organizationId);
+      if (actor === 'PLATFORM') {
+        // Platform Super Users are a separate auth realm: their own endpoint,
+        // and a session marked isPlatformUser that RequireModule never reads.
+        const result = await api.platform.auth.login(email, password);
+        setSession({
+          token: result.token,
+          actor: 'PLATFORM',
+          role: 'PLATFORM',
+          isPlatformUser: true,
+          displayName: result.user.name,
+          email: result.user.email,
+          platformUserId: result.user.platform_user_id,
+        });
+        return {
+          actor: 'PLATFORM',
+          profile: null,
+          account: { email: result.user.email, displayName: result.user.name },
+        };
+      }
 
-      if (result.role !== requestedActor) {
-        setLastAuthError('That account is not a ' + requestedActor + ' account.');
+      const profile = getProfile(actor);
+      if (!profile) {
+        setLastAuthError('Unknown portal for that email address.');
         return null;
       }
 
-      const profile = getProfile(requestedActor);
-      if (!profile) return null;
+      const result = await api.auth.login(actor, email, password, organizationId);
+
+      // The per-actor endpoint already enforces this; kept as a second guard.
+      if (result.role !== actor) {
+        setLastAuthError('That account is not a ' + actor + ' account.');
+        return null;
+      }
 
       setSession({
         token: result.token,
-        actor: requestedActor,
+        actor,
         role: profile.accessRole,
         userId: result.user.user_id,
         patientId: result.patient ? result.patient.patient_id : null,
@@ -58,12 +84,16 @@ export function SessionProvider({ children }) {
       });
 
       return {
-        actor: requestedActor,
+        actor,
         profile,
         account: { email: result.user.email, displayName: result.user.name },
       };
     } catch (err) {
-      setLastAuthError((err && err.message) || 'Login failed. Please try again.');
+      setLastAuthError(
+        actor === 'PLATFORM' && err && err.status === 401
+          ? 'Invalid email or password'
+          : (err && err.message) || 'Login failed. Please try again.',
+      );
       return null;
     }
   }, [setLastAuthError]);
