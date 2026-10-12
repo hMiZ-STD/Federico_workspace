@@ -56,7 +56,10 @@ export async function request(method, path, body, opts = {}) {
       method,
       headers,
       credentials: 'include',
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body:
+        method !== 'GET' && method !== 'HEAD' && body !== undefined && body !== null
+          ? JSON.stringify(body)
+          : undefined,
       signal: controller ? controller.signal : undefined,
     });
   } catch (networkErr) {

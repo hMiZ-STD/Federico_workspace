@@ -14,6 +14,8 @@ import {
   activeOutpatients,
   completedOutpatients,
 } from './intakeData.js';
+import TabNav from '../../components/ui/TabNav.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import TriageQueue from './TriageQueue.jsx';
 import ApprovePopup from './ApprovePopup.jsx';
 import SuggestPopup from './SuggestPopup.jsx';
@@ -47,20 +49,16 @@ export default function IntakeHubPage({ tab = 'triage' }) {
 
   return (
     <>
-      <div className="md-tabs" role="tablist" style={{ margin: '20px 20px 0' }}>
-        {INTAKE_TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={t.id === active.id}
-            className={'md-tab' + (t.id === active.id ? ' is-active' : '')}
-            onClick={() => navigate(t.href)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <TabNav
+        tabs={INTAKE_TABS}
+        activeTab={active.id}
+        onChange={(tabId) => {
+          const target = INTAKE_TABS.find((t) => t.id === tabId);
+          if (target) navigate(target.href);
+        }}
+        variant="underline"
+        style={{ margin: '20px 20px 0' }}
+      />
 
       {active.id === 'triage' ? <TriageTab d={d} reload={reload} /> : null}
       {active.id === 'tracking' ? <TrackingTab d={d} reload={reload} /> : null}
@@ -90,7 +88,7 @@ function TriageTab({ d, reload }) {
           </thead>
           <tbody id="requestTable">
             {pending.length === 0 ? (
-              <tr><td colSpan="11">No Pending Requests</td></tr>
+              <EmptyState asTableRow colSpan={11} title="No Pending Requests" />
             ) : (
               pending.map((r) => (
                 <tr key={r.pre_request_id}>
@@ -165,7 +163,7 @@ function TrackingTab({ d, reload }) {
           </thead>
           <tbody id="outpatientTable">
             {outpatients.length === 0 ? (
-              <tr><td colSpan="10">No Outpatients Currently Consulting</td></tr>
+              <EmptyState asTableRow colSpan={10} title="No Outpatients Currently Consulting" />
             ) : (
               outpatients.map((r) => (
                 <tr key={r.pre_request_id}>
@@ -197,7 +195,7 @@ function TrackingTab({ d, reload }) {
           </thead>
           <tbody id="admittedTable">
             {admitted.length === 0 ? (
-              <tr><td colSpan="11">No Admitted Patients Found</td></tr>
+              <EmptyState asTableRow colSpan={11} title="No Admitted Patients Found" />
             ) : (
               admitted.map((r) => (
                 <tr key={r.pre_request_id}>
@@ -274,7 +272,7 @@ function BedAllocationQueue({ d }) {
             </thead>
             <tbody id="homRequestTable">
               {requests.length === 0 ? (
-                <tr><td colSpan="6" style={{ textAlign: 'center', padding: 28, color: 'var(--color-muted-fg)' }}>No bed allocation requests</td></tr>
+                <EmptyState asTableRow colSpan={6} title="No bed allocation requests" />
               ) : (
                 requests.map((r) => {
                   const patient = d.patientsById[r.patient_id] || {};
@@ -367,7 +365,7 @@ function CompletedTab({ d, reload }) {
           </thead>
           <tbody id="dischargeTable">
             {dischargeRequested.length === 0 ? (
-              <tr><td colSpan="11">No Pending Requests</td></tr>
+              <EmptyState asTableRow colSpan={11} title="No Pending Requests" />
             ) : (
               dischargeRequested.map((r) => (
                 <tr key={r.pre_request_id}>
@@ -391,7 +389,7 @@ function CompletedTab({ d, reload }) {
           </thead>
           <tbody id="approvedDischargeTable">
             {dischargeApproved.length === 0 ? (
-              <tr><td colSpan="12">No Approved Requests</td></tr>
+              <EmptyState asTableRow colSpan={12} title="No Approved Requests" />
             ) : (
               dischargeApproved.map((r) => (
                 <tr key={r.pre_request_id}>
@@ -430,7 +428,7 @@ function CompletedTab({ d, reload }) {
           </thead>
           <tbody id="completedTable">
             {completed.length === 0 ? (
-              <tr><td colSpan="10">No Completed Visits</td></tr>
+              <EmptyState asTableRow colSpan={10} title="No Completed Visits" />
             ) : (
               completed.map((r) => (
                 <tr key={r.pre_request_id}>
@@ -462,7 +460,7 @@ function CompletedTab({ d, reload }) {
           </thead>
           <tbody id="rejectedTable">
             {rejected.length === 0 ? (
-              <tr><td colSpan="9">No Rejected Requests</td></tr>
+              <EmptyState asTableRow colSpan={9} title="No Rejected Requests" />
             ) : (
               rejected.map((r) => (
                 <tr key={r.pre_request_id}>

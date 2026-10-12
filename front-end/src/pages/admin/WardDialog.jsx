@@ -1,7 +1,7 @@
 'use strict';
 
 import { useState } from 'react';
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
 
@@ -53,31 +53,31 @@ function WardForm({ ward, bedCount, onClose, onSaved }) {
   }
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="md-native-dialog" style={{ display: 'block' }}>
-        <form id="ward-form" className="dialog-form" onSubmit={handleSubmit}>
-          <h2 className="md-dialog-title" id="ward-dialog-title">
-            {ward ? 'Edit ' + ward.ward_name : 'Add a Ward'}
-          </h2>
-          <div className="md-field">
-            <label htmlFor="ward-name">Department / ward name</label>
-            <input id="ward-name" required placeholder="e.g. Neurology Ward" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="md-field">
-            <label htmlFor="ward-description">Description</label>
-            <input id="ward-description" placeholder="Optional" value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-          <div className="md-field">
-            <label htmlFor="ward-beds">Total beds</label>
-            <input id="ward-beds" type="number" min="1" required placeholder="e.g. 10" value={beds} onChange={(e) => setBeds(e.target.value)} />
-          </div>
-          <div className="md-dialog-actions">
-            <button type="button" className="btn btn-outline btn-default" id="ward-cancel" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary btn-default">Save</button>
-          </div>
-        </form>
-      </div>
-    </Modal>
+    <DialogShell
+      open
+      onClose={onClose}
+      title={ward ? 'Edit ' + ward.ward_name : 'Add a Ward'}
+      subtitle="Configure clinical department name, description, and available inpatient bed capacity."
+    >
+      <form id="ward-form" className="dialog-form" onSubmit={handleSubmit}>
+        <div className="md-field">
+          <label htmlFor="ward-name">Department / ward name</label>
+          <input id="ward-name" required placeholder="e.g. Neurology Ward" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="md-field">
+          <label htmlFor="ward-description">Description</label>
+          <input id="ward-description" placeholder="Optional" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <div className="md-field">
+          <label htmlFor="ward-beds">Total beds</label>
+          <input id="ward-beds" type="number" min="1" required placeholder="e.g. 10" value={beds} onChange={(e) => setBeds(e.target.value)} />
+        </div>
+        <div className="md-dialog-actions">
+          <button type="button" className="btn btn-outline btn-default" id="ward-cancel" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn-primary btn-default">Save</button>
+        </div>
+      </form>
+    </DialogShell>
   );
 }
 

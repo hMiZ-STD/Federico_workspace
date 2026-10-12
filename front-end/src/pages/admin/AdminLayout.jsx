@@ -1,20 +1,20 @@
 'use strict';
 
 import { Outlet } from 'react-router-dom';
-import SharedNav from '../../components/layout/SharedNav.jsx';
+import AppNavbar from '../../components/layout/AppNavbar.jsx';
 import { useSession } from '../../auth/useSession.js';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import adminCss from '../../styles/admin/admin.css?inline';
 
 /**
- * Ported from Admin/shared-nav.js, same module gates. "Roles & Staff"
- * (screen-04, the custom-RBAC matrix) is gone: staff roles are managed from
- * the People directory, and the old URL redirects there.
+ * Ported from Admin/shared-nav.js. "Roles & Staff" (screen-04, the custom-RBAC
+ * matrix) is gone: staff roles are managed from the People directory, and the
+ * old URL redirects there.
  */
 const LINKS = [
   { href: '/Admin/screen-01-dashboard.html', label: 'Dashboard' },
-  { href: '/Admin/screen-02-departments.html', label: 'Departments', module: 'ADMISSIONS' },
-  { href: '/Admin/screen-03-inventory.html', label: 'Inventory Catalog', module: 'INVENTORY' },
+  { href: '/Admin/screen-02-departments.html', label: 'Departments' },
+  { href: '/Admin/screen-03-inventory.html', label: 'Inventory Catalog' },
   { href: '/Admin/screen-05-people.html', label: 'People' },
 ];
 
@@ -23,7 +23,7 @@ export default function AdminLayout() {
   const { tenant } = useSession();
   return (
     <>
-      <SharedNav
+      <AppNavbar
         roleName="Admin"
         brandName={tenant?.organization_name || 'Federico'}
         links={LINKS}

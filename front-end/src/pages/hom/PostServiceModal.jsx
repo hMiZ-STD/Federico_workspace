@@ -1,7 +1,7 @@
 'use strict';
 
 import { useState } from 'react';
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
 import { formatCurrency } from './homHelpers.js';
@@ -54,17 +54,21 @@ function PostServiceForm({ admissions, services, onClose, onChanged }) {
   }
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="modal-content" style={{ maxWidth: 520 }}>
-        <div className="modal-header">
-          <h2 className="h2" style={{ fontSize: 18 }}>Post Service Used</h2>
-          <button className="modal-close-btn" onClick={onClose}>{'✕'}</button>
+    <DialogShell
+      open
+      onClose={onClose}
+      title="Post Service Used"
+      subtitle="Select a patient and the service they used. Forwarded to Finance Associate for approval."
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, width: '100%' }}>
+          <button className="btn btn-secondary btn-default" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary btn-default" id="btn-submit-service" onClick={submit} disabled={submitting}>
+            Submit to FA
+          </button>
         </div>
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <p style={{ fontSize: 13, margin: 0, padding: '10px 14px', background: 'var(--status-info-bg, #e0f2fe)', borderRadius: 'var(--radius-sm)', color: 'var(--status-info-fg, #075985)' }}>
-            Select a patient and the service they used. This will be forwarded to Finance Associate
-            for approval.
-          </p>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           <div>
             <label className="label" style={{ display: 'block', marginBottom: 6 }}>
@@ -114,14 +118,7 @@ function PostServiceForm({ admissions, services, onClose, onChanged }) {
             {error}
           </div>
         </div>
-        <div className="modal-footer">
-          <button className="btn btn-secondary btn-default" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary btn-default" id="btn-submit-service" onClick={submit} disabled={submitting}>
-            Submit to FA
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
+      </DialogShell>
+    );
+  }
 

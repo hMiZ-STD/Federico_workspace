@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
-import PrePopup from './PrePopup.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 
 /** Ported from reject / confirmReject in PRE/js/requests.js. */
 export default function RejectPopup({ request, onClose, onDone }) {
@@ -28,26 +28,27 @@ export default function RejectPopup({ request, onClose, onDone }) {
   }
 
   return (
-    <PrePopup className="reject-popup" id="rejectPopup" onClose={onClose}>
-      <div className="reject-box">
-        <div className="popup-header-block">
-          <span className="popup-kicker popup-kicker-reject">Reject</span>
-          <h2>Reject Request</h2>
-          <p>Add a clear reason so the patient sees why.</p>
+    <DialogShell
+      open
+      onClose={onClose}
+      size="sm"
+      title="Reject Request"
+      subtitle="Add a clear reason so the patient sees why."
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, width: '100%' }}>
+          <button className="btn btn-secondary btn-default" onClick={onClose}>Cancel</button>
+          <button className="btn btn-danger btn-default" onClick={confirm}>Submit</button>
         </div>
-        <div className="popup-form-layout">
-          <div className="form-group">
-            <label htmlFor="rejectReason">Reason</label>
-            <textarea id="rejectReason" className="popup-textarea" placeholder="Enter reason..." rows="4"
-              value={reason} onChange={(e) => setReason(e.target.value)} />
-          </div>
-        </div>
-        <div className="popup-buttons">
-          <button onClick={confirm}>Submit</button>
-          <button onClick={onClose}>Cancel</button>
+      }
+    >
+      <div className="popup-form-layout" style={{ margin: 0 }}>
+        <div className="form-group">
+          <label htmlFor="rejectReason">Reason</label>
+          <textarea id="rejectReason" className="popup-textarea" placeholder="Enter reason..." rows="4"
+            value={reason} onChange={(e) => setReason(e.target.value)} />
         </div>
       </div>
-    </PrePopup>
+    </DialogShell>
   );
 }
 

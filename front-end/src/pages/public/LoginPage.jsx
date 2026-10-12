@@ -5,7 +5,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/index.js';
 import { useSession } from '../../auth/useSession.js';
 import { useSearchParam } from '../../hooks/useSearchParam.js';
-import { mockAccountsByOrg, PLATFORM_DEMO_ACCOUNT } from '../../lib/roleProfiles.js';
 import { resolveLoginIdentity, PORTAL_LABEL } from '../../lib/emailIdentity.js';
 import { getActorHome } from '../../auth/actorHome.js';
 import { toast } from '../../components/feedback/feedback.js';
@@ -14,13 +13,12 @@ import loginPageCss from '../../styles/login/login-page.css?inline';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 
 const REMEMBER_KEY = 'FedericoRememberMe';
-// How long the email must sit still before the portal chip and the patient
-// hospital picker react, so they don't flicker while a domain is half-typed.
+// How long the email must sit still before the portal chip reacts.
 const IDENTITY_SETTLE_MS = 350;
 const DEMO_ROLE_ORDER = ['Admin', 'HOM', 'PRE', 'FA', 'Patient'];
 const PLATFORM_DEMO_TAB = 'platform';
 
-/** The Remember Me entry, or null when absent or corrupt (ignored as before). */
+/** The Remember Me entry, or null when absent or corrupt. */
 function readRemembered() {
   try {
     const saved = localStorage.getItem(REMEMBER_KEY);
@@ -31,17 +29,13 @@ function readRemembered() {
 }
 
 /**
- * The one sign-in page for every actor. There are no role tabs: the email
- * says who you are.
+ * The unified sign-in page for every actor.
  *
  *   name.hom@citygen.com         → HOM portal of the hospital that owns citygen.com
  *   name.pre / .fa / .admin@...  → that portal, same domain rule
  *   name.platform@federico.com   → Platform Super User console
- *   anything else                → Patient portal; pick your hospital below
- *
- * resolveLoginIdentity() makes that call from the public organization list
- * (each org carries its email_domain); the server enforces it again through
- * the per-actor endpoint it is sent to.
+ *   personal email               → Patient portal; automatic direct entry, or
+ *                                  hospital selector only if registered across multiple facilities
  */
 export default function LoginPage() {
   usePageStyles(loginPageCss);
@@ -53,9 +47,10 @@ export default function LoginPage() {
   // Remembered credentials seed the initial state directly.
   const [remembered] = useState(readRemembered);
   const [organizations, setOrganizations] = useState(null); // null = loading
-  const [orgLoadFailed, setOrgLoadFailed] = useState(false);
+  const [demoData, setDemoData] = useState(null);
   const [orgId, setOrgId] = useState('');
   const [orgTouched, setOrgTouched] = useState(false);
+  const [multiOrgs, setMultiOrgs] = useState(null); // null = direct login; array = multi-hospital selection mode
   const [email, setEmail] = useState(remembered?.email || '');
   const [settledEmail, setSettledEmail] = useState(remembered?.email || '');
   const [password, setPassword] = useState('');
@@ -74,34 +69,34 @@ export default function LoginPage() {
     return () => clearTimeout(t);
   }, [email]);
 
-  // Public organization list, with ?org= then the remembered org as the
-  // patient hospital preselection.
+  // Load public organizations and dynamic demo credentials from backend.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const orgs = (await api.marketplace.organizations()) || [];
+        const [orgs, demoAccounts] = await Promise.all([
+          api.marketplace.organizations().catch(() => []),
+          api.auth.demoAccounts().catch(() => null),
+        ]);
         if (cancelled) return;
-        setOrganizations(orgs);
+        setOrganizations(orgs || []);
+        setDemoData(demoAccounts);
 
         const rememberedOrgId = readRemembered()?.orgId;
-        if (preselectOrg && orgs.some((o) => String(o.organization_id) === preselectOrg)) {
+        if (preselectOrg && (orgs || []).some((o) => String(o.organization_id) === preselectOrg)) {
           setOrgId(preselectOrg);
           setOrgTouched(true);
         } else if (
           rememberedOrgId &&
-          orgs.some((o) => String(o.organization_id) === String(rememberedOrgId))
+          (orgs || []).some((o) => String(o.organization_id) === String(rememberedOrgId))
         ) {
           setOrgId(String(rememberedOrgId));
           setOrgTouched(true);
-        } else if (orgs.length) {
-          setOrgId(String(orgs[0].organization_id));
         }
       } catch {
         if (cancelled) return;
-        setOrgLoadFailed(true);
         setOrganizations([]);
-        toast('Could not load the list of hospitals. Please refresh.', 'error');
+        toast('Could not load organizations. Please refresh.', 'error');
       }
     })();
     return () => {
@@ -115,10 +110,39 @@ export default function LoginPage() {
   );
   const isPatient = identity?.actor === 'Patient';
 
-  // A patient whose address sits on a hospital's domain most likely belongs
-  // there; preselect it unless the user (or ?org=) already chose.
-  const hintedOrgId = isPatient && identity.org ? String(identity.org.organization_id) : null;
-  const selectedOrgId = !orgTouched && hintedOrgId ? hintedOrgId : orgId;
+  const demoOrgTabs = useMemo(() => {
+    if (demoData?.organizations) {
+      return Object.values(demoData.organizations);
+    }
+    return [];
+  }, [demoData]);
+
+  const activeDemoTab =
+    demoTab ||
+    (identity?.actor === 'PLATFORM'
+      ? PLATFORM_DEMO_TAB
+      : String(
+          demoOrgTabs.some((o) => String(o.organization_id) === orgId)
+            ? orgId
+            : demoOrgTabs[0]?.organization_id || '1',
+        ));
+
+  const demoRows = useMemo(() => {
+    if (activeDemoTab === PLATFORM_DEMO_TAB) {
+      const platAccount = demoData?.platform || {
+        email: 'super.platform@federico.com',
+        password: 'Federico@Platform123',
+        displayName: 'Platform Super User',
+        purpose: 'Platform Super User — Tenant hospital provisioning, subscription management, and MRR analytics',
+      };
+      return [{ role: 'Platform', account: platAccount }];
+    }
+    const orgInfo = demoData?.organizations?.[activeDemoTab];
+    if (!orgInfo?.roles) return [];
+    return DEMO_ROLE_ORDER.flatMap((role) =>
+      (orgInfo.roles[role] || []).map((account) => ({ role, account })),
+    );
+  }, [demoData, activeDemoTab]);
 
   const handleLogin = useCallback(async () => {
     const trimmedEmail = email.trim();
@@ -127,20 +151,21 @@ export default function LoginPage() {
       return;
     }
     if (organizations === null) {
-      setError('Still loading hospitals, try again in a moment.');
+      setError('Still loading, please try again in a moment.');
       return;
     }
-    // Resolve from what was typed, not the debounced value.
+
     const target = resolveLoginIdentity(trimmedEmail, organizations);
     if (!target) {
       setError('Enter a valid email address.');
       return;
     }
+
     let organizationId = null;
-    if (target.actor === 'Patient') {
-      const patientOrgId =
-        !orgTouched && target.org ? String(target.org.organization_id) : orgId;
-      organizationId = patientOrgId ? Number(patientOrgId) : null;
+    if (multiOrgs && orgId) {
+      organizationId = Number(orgId);
+    } else if (target.actor === 'Patient') {
+      organizationId = orgTouched && orgId ? Number(orgId) : null;
     } else if (target.org) {
       organizationId = target.org.organization_id;
     }
@@ -153,6 +178,18 @@ export default function LoginPage() {
         setSubmitting(false);
         return;
       }
+
+      if (authResult.requiresOrganizationSelection) {
+        setMultiOrgs(authResult.organizations || []);
+        if (authResult.organizations && authResult.organizations.length > 0) {
+          setOrgId(String(authResult.organizations[0].organization_id));
+          setOrgTouched(true);
+        }
+        setError('');
+        setSubmitting(false);
+        return;
+      }
+
       setError('');
 
       try {
@@ -176,34 +213,23 @@ export default function LoginPage() {
       setError(err?.status === 0 ? err.message : 'Something went wrong. Please try again.');
       setSubmitting(false);
     }
-  }, [email, password, organizations, orgId, orgTouched, remember, authenticate, getLastAuthError, navigate]);
+  }, [email, password, organizations, multiOrgs, orgId, orgTouched, remember, authenticate, getLastAuthError, navigate]);
 
-  function fillDemo(account) {
+  function fillDemo(account, targetOrgId) {
     setEmail(account.email);
     setSettledEmail(account.email);
     setPassword(account.password);
+    if (targetOrgId && targetOrgId !== PLATFORM_DEMO_TAB) {
+      setOrgId(String(targetOrgId));
+      setOrgTouched(true);
+    } else {
+      setOrgId('');
+      setOrgTouched(false);
+    }
+    setMultiOrgs(null);
     setError('');
     toast('Demo credentials copied to form', 'info');
   }
-
-  // Demo panel: one tab per hospital with known demo users, plus Platform.
-  const demoOrgTabs = (organizations || []).filter((o) => mockAccountsByOrg[o.organization_id]);
-  const activeDemoTab =
-    demoTab ||
-    (identity?.actor === 'PLATFORM'
-      ? PLATFORM_DEMO_TAB
-      : String(
-          identity?.org?.organization_id ||
-            (demoOrgTabs.some((o) => String(o.organization_id) === selectedOrgId) ? selectedOrgId : '') ||
-            demoOrgTabs[0]?.organization_id ||
-            PLATFORM_DEMO_TAB,
-        ));
-  const demoRows =
-    activeDemoTab === PLATFORM_DEMO_TAB
-      ? [{ role: 'Platform', account: PLATFORM_DEMO_ACCOUNT }]
-      : DEMO_ROLE_ORDER.flatMap((role) =>
-          ((mockAccountsByOrg[activeDemoTab] || {})[role] || []).map((account) => ({ role, account })),
-        );
 
   let portalChip;
   if (!identity) {
@@ -221,7 +247,8 @@ export default function LoginPage() {
   } else if (isPatient) {
     portalChip = (
       <span className="portal-chip">
-        Signing in to the <strong>{PORTAL_LABEL.Patient}</strong>. Choose your hospital below.
+        Signing in to <strong>{PORTAL_LABEL.Patient}</strong>
+        {multiOrgs ? ' · Multiple hospital records found' : ''}
       </span>
     );
   } else {
@@ -282,6 +309,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
+                  setMultiOrgs(null);
                   setDemoTab(null);
                 }}
                 onBlur={() => setSettledEmail(email)}
@@ -291,33 +319,25 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {isPatient && (
-              <div className="form-group">
-                <label htmlFor="organization">Hospital</label>
+            {multiOrgs && (
+              <div className="form-group md-fade-in">
+                <label htmlFor="organization">Select Hospital Facility</label>
                 <select
                   id="organization"
-                  value={selectedOrgId}
+                  value={orgId}
                   onChange={(e) => {
                     setOrgId(e.target.value);
                     setOrgTouched(true);
                   }}
-                  disabled={organizations === null}
                 >
-                  {organizations === null ? (
-                    <option value="">Loading hospitals&hellip;</option>
-                  ) : orgLoadFailed ? (
-                    <option value="">Could not load hospitals {'—'} refresh to retry</option>
-                  ) : (
-                    organizations.map((org) => (
-                      <option key={org.organization_id} value={String(org.organization_id)}>
-                        {org.name}
-                      </option>
-                    ))
-                  )}
+                  {multiOrgs.map((org) => (
+                    <option key={org.organization_id} value={String(org.organization_id)}>
+                      {org.name}
+                    </option>
+                  ))}
                 </select>
                 <span className="field-hint">
-                  Choose the hospital you registered with.{' '}
-                  <Link to="/marketplace/marketplace-page.html">Browse all</Link>.
+                  This email is registered with multiple hospitals. Please choose which facility you want to access.
                 </span>
               </div>
             )}
@@ -356,7 +376,7 @@ export default function LoginPage() {
               type="submit"
               disabled={submitting}
             >
-              {submitting ? 'Signing in…' : 'Sign In'}
+              {submitting ? 'Signing in…' : multiOrgs ? 'Continue to Hospital' : 'Sign In'}
             </button>
           </form>
 
@@ -395,13 +415,20 @@ export default function LoginPage() {
                   className="demo-credential-row"
                   style={{ cursor: 'pointer' }}
                   title="Click to fill credentials"
-                  onClick={() => fillDemo(account)}
+                  onClick={() => fillDemo(account, activeDemoTab)}
                 >
-                  <strong>
-                    <span className="demo-role-badge">{role}</span> {account.displayName}
-                  </strong>
-                  <span>{account.email}</span>
-                  <code>{account.password}</code>
+                  <div className="demo-row-head">
+                    <strong>
+                      <span className="demo-role-badge">{role}</span> {account.displayName}
+                    </strong>
+                  </div>
+                  {account.purpose && (
+                    <div className="demo-role-desc">{account.purpose}</div>
+                  )}
+                  <div className="demo-row-creds">
+                    <span>{account.email}</span>
+                    <code>{account.password}</code>
+                  </div>
                 </div>
               ))}
             </div>

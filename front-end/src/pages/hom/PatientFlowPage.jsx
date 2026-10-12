@@ -8,6 +8,9 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useSearchParam } from '../../hooks/useSearchParam.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import SearchToolbar from '../../components/ui/SearchToolbar.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { csvEscape, downloadCsv } from '../../lib/csv.js';
 import { toast } from '../../components/feedback/feedback.js';
 import { statusLabel, statusVariant, daysSince, formatDate, joinPreRequestsWithPatients } from './homHelpers.js';
@@ -150,16 +153,16 @@ export default function PatientFlowPage() {
   return (
     <>
       <main className="dashboard-container">
-        <div className="header-section">
-          <div>
-            <h1 className="h1" style={{ marginBottom: 8 }}>Patient Flow &amp; Admissions</h1>
-            <p className="body-text">Manage inpatient care paths and process PRE discharge clearances</p>
-          </div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <button className="btn btn-secondary btn-default" id="patient-flow-export" onClick={exportCsv}>Export CSV</button>
-            <button className="btn btn-primary btn-default" id="btn-open-post-service" onClick={() => setPostOpen(true)}>+ Post Service</button>
-          </div>
-        </div>
+        <PageHeader
+          title="Patient Flow & Admissions"
+          subtitle="Manage inpatient care paths and process PRE discharge clearances"
+          actions={
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <button className="btn btn-secondary btn-default" id="patient-flow-export" onClick={exportCsv}>Export CSV</button>
+              <button className="btn btn-primary btn-default" id="btn-open-post-service" onClick={() => setPostOpen(true)}>+ Post Service</button>
+            </div>
+          }
+        />
 
         <div className="card" style={{ padding: 24, marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -180,11 +183,12 @@ export default function PatientFlowPage() {
               </thead>
               <tbody id="discharge-queue-tbody">
                 {pending.length === 0 && approved.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)' }}>
-                      No pending discharge clearance requests from PRE. All active inpatients are under ongoing ward care.
-                    </td>
-                  </tr>
+                  <EmptyState
+                    asTableRow
+                    colSpan={8}
+                    title="No pending discharge clearance requests"
+                    message="All active inpatients are under ongoing ward care."
+                  />
                 ) : (
                   <>
                     {pending.map((row) =>
@@ -217,35 +221,56 @@ export default function PatientFlowPage() {
             <h2 className="h2" style={{ fontSize: 18 }}>Inpatient &amp; Admissions Registry</h2>
           </div>
 
-          <div className="filter-bar" style={{ border: 'none', borderRadius: 0, borderBottom: '1px solid var(--border)', marginBottom: 0, background: 'var(--md-surface-container)', padding: '16px 24px', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-            <input type="text" className="input filter-input" placeholder="Search by UHID, patient, bed, doctor..." style={{ flex: 2, minWidth: 240 }} id="patient-flow-search"
-              value={filters.search} onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))} />
-            <select className="input filter-dropdown" id="patient-flow-department" style={{ flex: 1, minWidth: 160, appearance: 'auto' }}
-              value={filters.department} onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))}>
-              <option value="">All Departments</option>
-              {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <select className="input filter-dropdown" id="patient-flow-status" style={{ flex: 1, minWidth: 160, appearance: 'auto' }}
-              value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
-              <option value="">All Care Statuses</option>
-              <option value="ADMITTED">Admitted / Active</option>
-              <option value="DISCHARGE_REQUESTED">Discharge Requested</option>
-              <option value="DISCHARGE_APPROVED">Discharge Approved</option>
-              <option value="DISCHARGED">Discharged</option>
-            </select>
-            <select className="input filter-dropdown" id="patient-flow-date-range" style={{ flex: 1, minWidth: 140, appearance: 'auto' }}
-              value={filters.dateRange} onChange={(e) => setFilters((f) => ({ ...f, dateRange: e.target.value }))}>
-              <option value="">All Dates</option>
-              <option value="today">Admitted Today</option>
-              <option value="last3">Last 3 Days</option>
-              <option value="last7">Last 7 Days</option>
-              <option value="older">Older Than 7 Days</option>
-            </select>
-            <button className="btn btn-outline btn-default" style={{ height: 44 }} id="patient-flow-clear"
-              onClick={() => setFilters({ search: '', department: '', status: '', dateRange: '' })}>
-              Clear Filters
-            </button>
-          </div>
+          <SearchToolbar
+            searchQuery={filters.search}
+            onSearchChange={(v) => setFilters((f) => ({ ...f, search: v }))}
+            placeholder="Search by UHID, patient, bed, doctor..."
+            filters={[
+              {
+                id: 'department',
+                value: filters.department,
+                onChange: (v) => setFilters((f) => ({ ...f, department: v })),
+                options: [
+                  { value: '', label: 'All Departments' },
+                  ...departments.map((d) => ({ value: d, label: d })),
+                ],
+              },
+              {
+                id: 'status',
+                value: filters.status,
+                onChange: (v) => setFilters((f) => ({ ...f, status: v })),
+                options: [
+                  { value: '', label: 'All Care Statuses' },
+                  { value: 'ADMITTED', label: 'Admitted / Active' },
+                  { value: 'DISCHARGE_REQUESTED', label: 'Discharge Requested' },
+                  { value: 'DISCHARGE_APPROVED', label: 'Discharge Approved' },
+                  { value: 'DISCHARGED', label: 'Discharged' },
+                ],
+              },
+              {
+                id: 'dateRange',
+                value: filters.dateRange,
+                onChange: (v) => setFilters((f) => ({ ...f, dateRange: v })),
+                options: [
+                  { value: '', label: 'All Dates' },
+                  { value: 'today', label: 'Admitted Today' },
+                  { value: 'last3', label: 'Last 3 Days' },
+                  { value: 'last7', label: 'Last 7 Days' },
+                  { value: 'older', label: 'Older Than 7 Days' },
+                ],
+              },
+            ]}
+            actions={
+              <button
+                className="btn btn-outline btn-default"
+                style={{ height: 44 }}
+                id="patient-flow-clear"
+                onClick={() => setFilters({ search: '', department: '', status: '', dateRange: '' })}
+              >
+                Clear Filters
+              </button>
+            }
+          />
 
           <div className="table-scroll-container" style={{ maxHeight: 480, border: 'none', borderRadius: 0 }}>
             <table className="data-table">
@@ -254,7 +279,11 @@ export default function PatientFlowPage() {
               </thead>
               <tbody id="patients-table-body">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="9" style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>No patients match the selected filters.</td></tr>
+                  <EmptyState
+                    asTableRow
+                    colSpan={9}
+                    title="No patients match the selected filters"
+                  />
                 ) : (
                   filtered.map((row) => (
                     <tr key={row.pre_request_id}>

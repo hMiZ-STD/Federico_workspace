@@ -2,6 +2,7 @@
 
 import { api } from '../../api/index.js';
 import { toast, selectOne } from '../../components/feedback/feedback.js';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { formatDate, to12Hour } from './preHelpers.js';
 
 const PRIORITY_OPTIONS = [
@@ -64,11 +65,7 @@ export default function TriageQueue({ rows, pendingBedRequestIds, onChanged, tit
         </thead>
         <tbody id="approvedTable">
           {rows.length === 0 ? (
-            <tr>
-              <td colSpan="10" style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)' }}>
-                No Scheduled Patients Awaiting Check-in
-              </td>
-            </tr>
+            <EmptyState asTableRow colSpan={10} title="No Scheduled Patients Awaiting Check-in" />
           ) : (
             rows.map((r) => {
               const hasPendingBedRequest = pendingBedRequestIds.has(r.pre_request_id);

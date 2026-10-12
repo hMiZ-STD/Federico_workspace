@@ -6,7 +6,8 @@ import { useApi } from '../../hooks/useApi.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useSession } from '../../auth/useSession.js';
 import Button from '../../components/ui/Button.jsx';
-import ModuleLock from '../../components/layout/ModuleLock.jsx';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { toast, confirm } from '../../components/feedback/feedback.js';
 import StaffDialog from './StaffDialog.jsx';
 import DoctorDialog from './DoctorDialog.jsx';
@@ -26,16 +27,11 @@ const STAFF_ROLES = [
  * separate Roles & Staff screen and its 24-checkbox custom-RBAC matrix: each
  * staff login now has one portal role, changed from the dropdown in its row,
  * and a one-click enable/disable.
- *
- * The DOCTOR module gate applies in two places, exactly as before: the
- * "+ Add Doctor" button, and the doctors table which shows an explanatory row
- * instead of loading.
  */
 export default function PeoplePage() {
   useDocumentTitle('People | Federico Hospital Admin');
-  const { hasModule, tenant } = useSession();
+  const { tenant } = useSession();
   const emailDomain = tenant?.email_domain || null;
-  const doctorModule = hasModule('DOCTOR');
 
   const [staffDialogOpen, setStaffDialogOpen] = useState(false);
   const [editingDoctorId, setEditingDoctorId] = useState(undefined);
@@ -52,9 +48,7 @@ export default function PeoplePage() {
   const staff = staffLoad.error ? false : staffLoad.data;
   const loadStaff = staffLoad.reload;
 
-  // Without the DOCTOR module nothing is fetched; the table shows the locked row.
   const doctorsLoad = useApi(async () => {
-    if (!doctorModule) return null;
     try {
       const [d, w] = await Promise.all([api.doctors.list(), api.wards.list().catch(() => [])]);
       return { doctors: d || [], wards: w || [] };
@@ -62,7 +56,7 @@ export default function PeoplePage() {
       toast(err.message || 'Could not load doctors.', 'error');
       throw err;
     }
-  }, [doctorModule]);
+  }, []);
   const doctors = doctorsLoad.error ? false : doctorsLoad.data ? doctorsLoad.data.doctors : null;
   const wards = doctorsLoad.data ? doctorsLoad.data.wards : [];
   const loadDoctors = doctorsLoad.reload;
@@ -113,21 +107,21 @@ export default function PeoplePage() {
 
   return (
     <main className="dashboard-container">
-      <div className="header-section">
-        <div>
-          <h1 className="h1" style={{ marginBottom: 8 }}>People</h1>
-          <p className="body-text">
+      <PageHeader
+        title="People"
+        subtitle={
+          <>
             Add staff logins for your organization and manage doctors by department. Staff sign in
             to their own portal with the email and password you set here.
-          </p>
-          {emailDomain && (
-            <p className="body-text" style={{ marginTop: 4 }}>
-              Staff email domain: <strong>@{emailDomain}</strong> {'—'} logins look like{' '}
-              <code>name.hom@{emailDomain}</code>. Only Federico platform staff can change the domain.
-            </p>
-          )}
-        </div>
-      </div>
+            {emailDomain && (
+              <span style={{ display: 'block', marginTop: 4 }}>
+                Staff email domain: <strong>@{emailDomain}</strong> {'—'} logins look like{' '}
+                <code>name.hom@{emailDomain}</code>. Only Federico platform staff can change the domain.
+              </span>
+            )}
+          </>
+        }
+      />
 
       <div className="card">
         <div className="card-header" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -151,11 +145,12 @@ export default function PeoplePage() {
                 {staff === null ? null : staff === false ? (
                   <tr><td colSpan="5">Could not load staff.</td></tr>
                 ) : staff.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      No staff logins yet. Use {'“'}Add Person{'”'}.
-                    </td>
-                  </tr>
+                  <EmptyState
+                    asTableRow
+                    colSpan={5}
+                    title="No staff logins yet"
+                    message="Use “Add Person” to invite team members."
+                  />
                 ) : (
                   staff.map((m) => {
                     const active = m.is_active !== false;
@@ -201,15 +196,12 @@ export default function PeoplePage() {
           <div>
             <h2 className="card-title">Doctors &amp; Departments</h2>
             <p className="card-description">
-              Assign doctors to a department/ward. Locked when the Doctor Management module
-              isn&apos;t in your subscription.
+              Assign doctors to a department/ward.
             </p>
           </div>
-          <ModuleLock module="DOCTOR">
-            <button className="btn btn-primary btn-default" id="new-doctor-btn" onClick={() => setEditingDoctorId(null)}>
-              + Add Doctor
-            </button>
-          </ModuleLock>
+          <button className="btn btn-primary btn-default" id="new-doctor-btn" onClick={() => setEditingDoctorId(null)}>
+            + Add Doctor
+          </button>
         </div>
         <div className="card-content" style={{ padding: 0 }}>
           <div className="table-container">
@@ -218,20 +210,15 @@ export default function PeoplePage() {
                 <tr><th>Name</th><th>Specialization</th><th>Department</th><th>Contact</th><th>Action</th></tr>
               </thead>
               <tbody id="doctors-tbody">
-                {!doctorModule ? (
-                  <tr>
-                    <td colSpan="5" style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      The Doctor Management module is not enabled for your organization.
-                    </td>
-                  </tr>
-                ) : doctors === null ? null : doctors === false ? (
+                {doctors === null ? null : doctors === false ? (
                   <tr><td colSpan="5">Could not load doctors.</td></tr>
                 ) : doctors.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      No doctors yet. Use {'“'}Add Doctor{'”'}.
-                    </td>
-                  </tr>
+                  <EmptyState
+                    asTableRow
+                    colSpan={5}
+                    title="No doctors yet"
+                    message="Use “Add Doctor” to configure medical staff."
+                  />
                 ) : (
                   doctors.map((d) => (
                     <tr key={d.doctor_id}>

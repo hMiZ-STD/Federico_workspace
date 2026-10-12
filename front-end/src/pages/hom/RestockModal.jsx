@@ -1,7 +1,7 @@
 'use strict';
 
 import { useState } from 'react';
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
 import { formatCurrency } from './homHelpers.js';
@@ -96,71 +96,71 @@ function RestockForm({ initialItemId, data, onClose, onChanged }) {
   }
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="modal-content" style={{ maxWidth: 500 }}>
-        <div className="modal-header">
-          <h2 className="h2" style={{ fontSize: 20 }}>Request Restock / Purchase Order</h2>
-          <button className="btn btn-outline btn-sm" style={{ border: 'none', padding: '4px 8px' }} onClick={onClose}>{'✕'}</button>
-        </div>
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Supply Item *</label>
-            <select className="input" id="restock-item-select" style={{ appearance: 'auto' }} value={itemId} onChange={(e) => { setItemId(e.target.value); setError(''); }}>
-              <option value="">Select supply item...</option>
-              {data.items.map((i) => (
-                <option key={i.item_id} value={i.item_id}>{i.item_name} ({i.stock_quantity} available)</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Quantity *</label>
-            <input type="number" className="input" id="restock-qty" min="1" step="1" value={qty} onChange={(e) => setQty(e.target.value)} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Supplier Name *</label>
-            <input type="text" className="input" id="restock-supplier" placeholder="e.g. MediSupply Co., Global Health Logistics"
-              value={supplier} onChange={(e) => setSupplier(e.target.value)} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Priority</label>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button className={priority === 'normal' ? 'btn btn-primary btn-default' : 'btn btn-outline btn-default'} id="btn-priority-normal" style={{ flex: 1 }} onClick={() => setPriority('normal')}>
-                Normal
-              </button>
-              <button className={priority === 'urgent' ? 'btn btn-primary btn-default' : 'btn btn-outline btn-default'} id="btn-priority-urgent" style={{ flex: 1 }} onClick={() => setPriority('urgent')}>
-                Urgent
-              </button>
-            </div>
-          </div>
-          <div style={{ background: 'var(--neutral-bg)', padding: 16, borderRadius: 'var(--radius-base)' }}>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>
-              Estimated cost:{' '}
-              <span id="restock-calc-text">
-                {!item ? '₹0 × 0 = ' : cost === null ? 'No linked service rate — ' : formatCurrency(cost) + ' × ' + quantityNum + ' = '}
-              </span>{' '}
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }} id="restock-total-cost">
-                {!item ? '₹0' : cost === null ? 'Estimate unavailable' : formatCurrency(cost * quantityNum)}
-              </span>
-            </p>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Notes (Optional)</label>
-            <textarea className="input" id="restock-notes" style={{ height: 80, padding: 12, resize: 'none' }}
-              placeholder="Add delivery or batch instructions..." value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Supplier Invoice / Quote (Optional)</label>
-            <input type="file" className="input" id="restock-invoice-input" accept="application/pdf,image/png,image/jpeg,image/webp" style={{ padding: 8 }}
-              onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)} />
-            <div id="restock-invoice-status" style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>{invoiceStatus}</div>
-          </div>
-          <div id="restock-form-error" style={{ display: error ? 'block' : 'none', fontSize: 12, color: 'var(--error)', fontWeight: 500 }}>{error}</div>
-        </div>
-        <div className="modal-footer">
+    <DialogShell
+      open
+      onClose={onClose}
+      title="Request Restock / Purchase Order"
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, width: '100%' }}>
           <button className="btn btn-secondary btn-default" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary btn-default" onClick={submit}>Submit PO Request</button>
         </div>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Supply Item *</label>
+          <select className="input" id="restock-item-select" style={{ appearance: 'auto' }} value={itemId} onChange={(e) => { setItemId(e.target.value); setError(''); }}>
+            <option value="">Select supply item...</option>
+            {data.items.map((i) => (
+              <option key={i.item_id} value={i.item_id}>{i.item_name} ({i.stock_quantity} available)</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Quantity *</label>
+          <input type="number" className="input" id="restock-qty" min="1" step="1" value={qty} onChange={(e) => setQty(e.target.value)} />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Supplier Name *</label>
+          <input type="text" className="input" id="restock-supplier" placeholder="e.g. MediSupply Co., Global Health Logistics"
+            value={supplier} onChange={(e) => setSupplier(e.target.value)} />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Priority</label>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button className={priority === 'normal' ? 'btn btn-primary btn-default' : 'btn btn-outline btn-default'} id="btn-priority-normal" style={{ flex: 1 }} onClick={() => setPriority('normal')}>
+              Normal
+            </button>
+            <button className={priority === 'urgent' ? 'btn btn-primary btn-default' : 'btn btn-outline btn-default'} id="btn-priority-urgent" style={{ flex: 1 }} onClick={() => setPriority('urgent')}>
+              Urgent
+            </button>
+          </div>
+        </div>
+        <div style={{ background: 'var(--neutral-bg)', padding: 16, borderRadius: 'var(--radius-base)' }}>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>
+            Estimated cost:{' '}
+            <span id="restock-calc-text">
+              {!item ? '₹0 × 0 = ' : cost === null ? 'No linked service rate — ' : formatCurrency(cost) + ' × ' + quantityNum + ' = '}
+            </span>{' '}
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }} id="restock-total-cost">
+              {!item ? '₹0' : cost === null ? 'Estimate unavailable' : formatCurrency(cost * quantityNum)}
+            </span>
+          </p>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Notes (Optional)</label>
+          <textarea className="input" id="restock-notes" style={{ height: 80, padding: 12, resize: 'none' }}
+            placeholder="Add delivery or batch instructions..." value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Supplier Invoice / Quote (Optional)</label>
+          <input type="file" className="input" id="restock-invoice-input" accept="application/pdf,image/png,image/jpeg,image/webp" style={{ padding: 8 }}
+            onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)} />
+          <div id="restock-invoice-status" style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>{invoiceStatus}</div>
+        </div>
+        <div id="restock-form-error" style={{ display: error ? 'block' : 'none', fontSize: 12, color: 'var(--error)', fontWeight: 500 }}>{error}</div>
       </div>
-    </Modal>
+    </DialogShell>
   );
 }

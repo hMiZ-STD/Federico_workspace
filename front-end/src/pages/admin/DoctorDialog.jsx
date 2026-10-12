@@ -1,7 +1,7 @@
 'use strict';
 
 import { useState } from 'react';
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
 
@@ -67,44 +67,44 @@ function DoctorForm({ doctor, wards, onClose, onSaved }) {
   }
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="md-native-dialog" style={{ display: 'block' }}>
-        <form id="doctor-form" className="dialog-form" onSubmit={handleSubmit}>
-          <h2 className="md-dialog-title" id="doctor-dialog-title">
-            {doctor ? 'Edit ' + doctor.name : 'Add a Doctor'}
-          </h2>
-          <div className="md-field">
-            <label htmlFor="doctor-name">Name</label>
-            <input id="doctor-name" required placeholder="Dr. &hellip;" value={f.name} onChange={set('name')} />
-          </div>
-          <div className="md-field">
-            <label htmlFor="doctor-spec">Specialization</label>
-            <input id="doctor-spec" required placeholder="e.g. Cardiology" value={f.specialization} onChange={set('specialization')} />
-          </div>
-          <div className="md-field">
-            <label htmlFor="doctor-dept">Department</label>
-            <select id="doctor-dept" className="input" value={f.department} onChange={set('department')}>
-              {options.length === 0 ? (
-                <option value="">General</option>
-              ) : (
-                options.map((n) => <option key={n} value={n}>{n}</option>)
-              )}
-            </select>
-          </div>
-          <div className="md-field">
-            <label htmlFor="doctor-phone">Phone</label>
-            <input id="doctor-phone" placeholder="Optional" value={f.phone} onChange={set('phone')} />
-          </div>
-          <div className="md-field">
-            <label htmlFor="doctor-email">Email</label>
-            <input id="doctor-email" type="email" placeholder="Optional" value={f.email} onChange={set('email')} />
-          </div>
-          <div className="md-dialog-actions">
-            <button type="button" className="btn btn-outline btn-default" id="doctor-cancel" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary btn-default">Save</button>
-          </div>
-        </form>
-      </div>
-    </Modal>
+    <DialogShell
+      open
+      onClose={onClose}
+      title={doctor ? 'Edit ' + doctor.name : 'Add a Doctor'}
+      subtitle="Configure doctor directory profile and department assignment."
+    >
+      <form id="doctor-form" className="dialog-form" onSubmit={handleSubmit}>
+        <div className="md-field">
+          <label htmlFor="doctor-name">Name</label>
+          <input id="doctor-name" required placeholder="Dr. …" value={f.name} onChange={set('name')} />
+        </div>
+        <div className="md-field">
+          <label htmlFor="doctor-spec">Specialization</label>
+          <input id="doctor-spec" required placeholder="e.g. Cardiology" value={f.specialization} onChange={set('specialization')} />
+        </div>
+        <div className="md-field">
+          <label htmlFor="doctor-dept">Department</label>
+          <select id="doctor-dept" className="input" value={f.department} onChange={set('department')}>
+            {options.length === 0 ? (
+              <option value="">General</option>
+            ) : (
+              options.map((n) => <option key={n} value={n}>{n}</option>)
+            )}
+          </select>
+        </div>
+        <div className="md-field">
+          <label htmlFor="doctor-phone">Phone</label>
+          <input id="doctor-phone" placeholder="Optional" value={f.phone} onChange={set('phone')} />
+        </div>
+        <div className="md-field">
+          <label htmlFor="doctor-email">Email</label>
+          <input id="doctor-email" type="email" placeholder="Optional" value={f.email} onChange={set('email')} />
+        </div>
+        <div className="md-dialog-actions">
+          <button type="button" className="btn btn-outline btn-default" id="doctor-cancel" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn-primary btn-default">Save</button>
+        </div>
+      </form>
+    </DialogShell>
   );
 }

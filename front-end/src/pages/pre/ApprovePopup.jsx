@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
 import { sortDoctorsForDepartment, to24Hour } from './preHelpers.js';
-import PrePopup, { DoctorOptions } from './PrePopup.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
+import { DoctorOptions } from './PrePopup.jsx';
 
 const UNAVAILABLE = 'Doctor is not available at this time. Please select another time slot.';
 
@@ -118,79 +119,80 @@ export default function ApprovePopup({ request, doctors, onClose, onDone }) {
   };
 
   return (
-    <PrePopup className="approve-popup" id="approvePopup" onClose={onClose}>
-      <div className="approve-box">
-        <div className="popup-header-block">
-          <span className="popup-kicker popup-kicker-approve">Approval</span>
-          <h2>Approve Appointment</h2>
-          <p>Assign a doctor. Leave time empty to keep the patient&apos;s requested slot.</p>
-        </div>
-        <div className="popup-form-layout">
-          <div className="popup-summary-row">
-            <span className="popup-summary-pill">{request.patientName || 'Patient'}</span>
-            <span className="popup-summary-pill">{request.department || 'General'}</span>
-          </div>
-          <div className="form-group">
-            <label htmlFor="doctorSelect">Doctor</label>
-            <select id="doctorSelect" className="custom-select popup-input" value={doctorId} onChange={handleDoctorChange}>
-              <DoctorOptions doctors={doctors} department={request.department} sortFn={sortDoctorsForDepartment} />
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Appointment Time</label>
-            {/* AM/PM time picker: three separate selects so the user can
-                explicitly choose hour, minute and meridiem without the
-                browser's native time widget hiding AM/PM on some systems. */}
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {/* Hour */}
-              <select value={hour} onChange={handleHourChange} style={inputStyle} aria-label="Hour">
-                <option value="">HH</option>
-                {hourOptions.map((h) => (
-                  <option key={h} value={h}>{String(h).padStart(2, '0')}</option>
-                ))}
-              </select>
-
-              <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-secondary)' }}>:</span>
-
-              {/* Minute */}
-              <select value={minute} onChange={handleMinuteChange} style={inputStyle} aria-label="Minute">
-                {minuteOptions.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-
-              {/* AM / PM */}
-              <select value={meridiem} onChange={handleMeridiemChange} style={{ ...inputStyle, fontWeight: 600 }} aria-label="AM or PM">
-                <option value="AM">AM</option>
-                <option value="PM">PM</option>
-              </select>
-            </div>
-            <small className="popup-helper">Optional. Leave hour blank to keep the requested time.</small>
-
-            {/* Availability error — shown only when the doctor is unavailable */}
-            {availError && (
-              <div style={{
-                marginTop: 8,
-                padding: '8px 12px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: 6,
-                color: '#991b1b',
-                fontSize: 13,
-                fontWeight: 500,
-              }}>
-                {availError}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="popup-buttons">
-          <button onClick={confirm} disabled={checking}>
+    <DialogShell
+      open
+      onClose={onClose}
+      size="md"
+      title="Approve Appointment"
+      subtitle="Assign a doctor. Leave time empty to keep the patient's requested slot."
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, width: '100%' }}>
+          <button className="btn btn-secondary btn-default" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary btn-default" onClick={confirm} disabled={checking}>
             {checking ? 'Checking…' : 'Submit'}
           </button>
-          <button onClick={onClose}>Cancel</button>
+        </div>
+      }
+    >
+      <div className="popup-form-layout" style={{ margin: 0 }}>
+        <div className="popup-summary-row">
+          <span className="popup-summary-pill">{request.patientName || 'Patient'}</span>
+          <span className="popup-summary-pill">{request.department || 'General'}</span>
+        </div>
+        <div className="form-group">
+          <label htmlFor="doctorSelect">Doctor</label>
+          <select id="doctorSelect" className="custom-select popup-input" value={doctorId} onChange={handleDoctorChange}>
+            <DoctorOptions doctors={doctors} department={request.department} sortFn={sortDoctorsForDepartment} />
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Appointment Time</label>
+          {/* AM/PM time picker: three separate selects so the user can
+              explicitly choose hour, minute and meridiem without the
+              browser's native time widget hiding AM/PM on some systems. */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Hour */}
+            <select value={hour} onChange={handleHourChange} style={inputStyle} aria-label="Hour">
+              <option value="">HH</option>
+              {hourOptions.map((h) => (
+                <option key={h} value={h}>{String(h).padStart(2, '0')}</option>
+              ))}
+            </select>
+
+            <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-secondary)' }}>:</span>
+
+            {/* Minute */}
+            <select value={minute} onChange={handleMinuteChange} style={inputStyle} aria-label="Minute">
+              {minuteOptions.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+
+            {/* AM / PM */}
+            <select value={meridiem} onChange={handleMeridiemChange} style={{ ...inputStyle, fontWeight: 600 }} aria-label="AM or PM">
+              <option value="AM">AM</option>
+              <option value="PM">PM</option>
+            </select>
+          </div>
+          <small className="popup-helper">Optional. Leave hour blank to keep the requested time.</small>
+
+          {/* Availability error — shown only when the doctor is unavailable */}
+          {availError && (
+            <div style={{
+              marginTop: 8,
+              padding: '8px 12px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: 6,
+              color: '#991b1b',
+              fontSize: 13,
+              fontWeight: 500,
+            }}>
+              {availError}
+            </div>
+          )}
         </div>
       </div>
-    </PrePopup>
+    </DialogShell>
   );
 }

@@ -4,19 +4,10 @@ import { useState } from 'react';
 import { api } from '../../api/index.js';
 import { useApi } from '../../hooks/useApi.js';
 import { formatCurrency, formatDateTime } from './faHelpers.js';
+import SearchToolbar from '../../components/ui/SearchToolbar.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import * as actions from './faActions.js';
 import * as S from './faStyles.js';
-
-const FILTER_STYLE = {
-  padding: '10px 16px',
-  border: 'none',
-  borderRadius: 'var(--radius-full)',
-  fontSize: '13px',
-  outline: 'none',
-  fontFamily: 'inherit',
-  background: 'var(--md-surface-container-high)',
-  color: 'var(--md-on-background)',
-};
 
 /**
  * Every issued tax receipt, newest first, with search and payment-mode filter
@@ -38,28 +29,32 @@ export default function ReceiptsSection({ ctx, patientsById }) {
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-end',
+          alignItems: 'center',
           marginBottom: '24px',
+          gap: 16,
+          flexWrap: 'wrap',
         }}
       >
         <h2 style={{ margin: 0, color: 'var(--color-fg)', fontWeight: 700 }}>Payment Receipts</h2>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <input
-            type="text"
-            id="receipt-search"
-            placeholder="Search Patient or UHID..."
-            style={{ ...FILTER_STYLE, width: '250px' }}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <select id="receipt-filter" style={FILTER_STYLE} value={mode} onChange={(e) => setMode(e.target.value)}>
-            <option value="ALL">All Payment Methods</option>
-            <option value="UPI">UPI</option>
-            <option value="CARD">Card</option>
-            <option value="CASH">Cash</option>
-            <option value="NETBANKING">Netbanking</option>
-          </select>
-        </div>
+        <SearchToolbar
+          searchQuery={query}
+          onSearchChange={setQuery}
+          placeholder="Search Patient or UHID..."
+          filters={[
+            {
+              id: 'receipt-filter',
+              value: mode,
+              onChange: setMode,
+              options: [
+                { value: 'ALL', label: 'All Payment Methods' },
+                { value: 'UPI', label: 'UPI' },
+                { value: 'CARD', label: 'Card' },
+                { value: 'CASH', label: 'Cash' },
+                { value: 'NETBANKING', label: 'Netbanking' },
+              ],
+            },
+          ]}
+        />
       </div>
 
       <div className="card" style={S.cardFlush}>
@@ -90,13 +85,7 @@ export default function ReceiptsSection({ ctx, patientsById }) {
  */
 function Rows({ rows, patientsById, query, mode }) {
   if (!rows.length) {
-    return (
-      <tr>
-        <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-          No receipts found.
-        </td>
-      </tr>
-    );
+    return <EmptyState asTableRow colSpan={6} title="No receipts found." />;
   }
 
   const q = query.toLowerCase();

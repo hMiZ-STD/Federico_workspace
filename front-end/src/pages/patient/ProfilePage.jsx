@@ -5,7 +5,7 @@ import { usePatientStore } from './usePatientStore.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
-import ModuleLock from '../../components/layout/ModuleLock.jsx';
+import PageHeader from '../../components/layout/PageHeader.jsx';
 import EyeField from './EyeField.jsx';
 import InsuranceCardUpload from './InsuranceCardUpload.jsx';
 import {
@@ -408,12 +408,10 @@ export default function ProfilePage() {
 
   return (
     <main className="profile-page">
-      <div className="page-header">
-        <div>
-          <h1>My Profile</h1>
-          <p>Manage your personal information, security, and insurance details.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="My Profile"
+        subtitle="Manage your personal information, security, and insurance details."
+      />
 
       <div className="profile-layout">
         <div className="profile-main">
@@ -618,7 +616,7 @@ export default function ProfilePage() {
             </form>
           </section>
 
-          <ModuleLock module="INSURANCE">{insuranceSection}</ModuleLock>
+          {insuranceSection}
         </div>
 
         <aside className="profile-sidebar">
@@ -647,16 +645,14 @@ export default function ProfilePage() {
                 <span>Contact</span>
                 <strong>{profile ? profile.phone || '' : '--'}</strong>
               </div>
-              <ModuleLock module="INSURANCE">
-                <div className="side-row">
-                  <span>Insurance</span>
-                  <strong>
-                    <span className="verified-badge">
-                      {profile ? (ins.verified ? 'Verified' : 'Unverified') : '--'}
-                    </span>
-                  </strong>
-                </div>
-              </ModuleLock>
+              <div className="side-row">
+                <span>Insurance</span>
+                <strong>
+                  <span className="verified-badge">
+                    {profile ? (ins.verified ? 'Verified' : 'Unverified') : '--'}
+                  </span>
+                </strong>
+              </div>
               <div className="side-row">
                 <span>Provider</span>
                 <strong>{profile ? ins.provider || '' : '--'}</strong>

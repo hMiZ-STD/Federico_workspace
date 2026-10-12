@@ -27,6 +27,7 @@ const ROUTES = [
   ['Auth', 'post', '/auth/login/{actor}', 'Unified-login portal endpoint (hom, pre, fa, admin, patient); 403 for an account of another role'],
   ['Auth', 'post', '/auth/signup', 'Patient self-service signup'],
   ['Auth', 'get', '/auth/me', 'Get currently authenticated user session'],
+  ['Auth', 'get', '/auth/demo-accounts', 'Get active organizations and demo credentials'],
   ['Auth', 'post', '/auth/logout', 'User logout and session invalidation'],
 
   // Billing

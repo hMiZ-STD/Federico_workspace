@@ -5,6 +5,10 @@ import { useSearchParams } from 'react-router-dom';
 import { usePatientStore } from './usePatientStore.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { toast, selectOne } from '../../components/feedback/feedback.js';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
+import TabNav from '../../components/ui/TabNav.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import DocumentRow from './DocumentRow.jsx';
 import BillDetailsModal from './BillDetailsModal.jsx';
 import { openInvoiceDigitalCopy, openBillingDigitalCopy } from './patientInvoiceCopy.js';
@@ -12,18 +16,14 @@ import { usePageStyles } from '../../hooks/usePageStyles.js';
 import patientBillingCss from '../../styles/patient/patient-billing.css?inline';
 
 const TABS = [
-  { section: 'invoices', label: 'Itemized Invoices' },
-  { section: 'receipts', label: 'Payment Receipts' },
-  { section: 'discharge', label: 'Discharge Summaries' },
-  { section: 'eod', label: 'EOD Bills' },
+  { id: 'invoices', label: 'Itemized Invoices' },
+  { id: 'receipts', label: 'Payment Receipts' },
+  { id: 'discharge', label: 'Discharge Summaries' },
+  { id: 'eod', label: 'EOD Bills' },
 ];
 
 function EmptySection({ message }) {
-  return (
-    <div className="table-empty">
-      <p>{message}</p>
-    </div>
-  );
+  return <EmptyState icon="📄" title={message} />;
 }
 
 export default function BillingPage() {
@@ -109,53 +109,35 @@ export default function BillingPage() {
   return (
     <>
       <main className="billing-page">
-        <div className="page-header">
-          <div>
-            <h1>My Bills &amp; Invoices</h1>
-            <p>
-              Review your itemized hospital bills, make secure online payments, track official receipts,
-              and access discharge financial records.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="My Bills & Invoices"
+          subtitle="Review your itemized hospital bills, make secure online payments, track official receipts, and access discharge financial records."
+        />
 
         <section className="kpi-grid">
-          <article className="kpi-card">
-            <p className="kpi-label">Total Billed</p>
-            <h2 className="kpi-value" id="kpi-total-billed">
-              ₹{totalBilled.toLocaleString('en-IN')}
-            </h2>
-            <span className="kpi-sub" id="kpi-total-billed-sub">
-              {bills.length} itemized invoices
-            </span>
-          </article>
-          <article className="kpi-card">
-            <p className="kpi-label">Paid Amount</p>
-            <h2 className="kpi-value success" id="kpi-paid">
-              ₹{paidTotal.toLocaleString('en-IN')}
-            </h2>
-            <span className="kpi-sub" id="kpi-paid-sub">
-              {receipts.filter((row) => row.type === 'RECEIPT').length} receipts
-            </span>
-          </article>
-          <article className="kpi-card">
-            <p className="kpi-label">Outstanding Balance</p>
-            <h2 className="kpi-value danger" id="kpi-pending">
-              ₹{pendingTotal.toLocaleString('en-IN')}
-            </h2>
-            <span className="kpi-sub" id="kpi-pending-sub">
-              {bills.filter((b) => b.status !== 'paid').length} pending payments
-            </span>
-          </article>
-          <article className="kpi-card">
-            <p className="kpi-label">Care Interactions</p>
-            <h2 className="kpi-value primary" id="kpi-visits">
-              {String((visits || []).length || bills.length || 0)}
-            </h2>
-            <span className="kpi-sub" id="kpi-visits-sub">
-              Visits &amp; admissions
-            </span>
-          </article>
+          <StatCard
+            label="Total Billed"
+            value={`₹${totalBilled.toLocaleString('en-IN')}`}
+            sub={`${bills.length} itemized invoices`}
+          />
+          <StatCard
+            label="Paid Amount"
+            value={`₹${paidTotal.toLocaleString('en-IN')}`}
+            sub={`${receipts.filter((row) => row.type === 'RECEIPT').length} receipts`}
+            variant="success"
+          />
+          <StatCard
+            label="Outstanding Balance"
+            value={`₹${pendingTotal.toLocaleString('en-IN')}`}
+            sub={`${bills.filter((b) => b.status !== 'paid').length} pending payments`}
+            variant="error"
+          />
+          <StatCard
+            label="Care Interactions"
+            value={String((visits || []).length || bills.length || 0)}
+            sub="Visits & admissions"
+            variant="primary"
+          />
         </section>
 
         {/*
@@ -198,19 +180,12 @@ export default function BillingPage() {
         <section className="bills-section">
           <div className="bills-header">
             <h2>Financial Documents</h2>
-            <div className="filter-tabs">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.section}
-                  className={'filter-tab' + (activeTab === tab.section ? ' active' : '')}
-                  type="button"
-                  data-section={tab.section}
-                  onClick={() => setActiveTab(tab.section)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            <TabNav
+              tabs={TABS}
+              activeTab={activeTab}
+              onChange={setActiveTab}
+              variant="pills"
+            />
           </div>
 
           <div

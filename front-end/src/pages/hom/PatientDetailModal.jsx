@@ -1,8 +1,10 @@
 'use strict';
 
 import { useEffect, useState } from 'react';
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import Badge from '../../components/ui/Badge.jsx';
+import TabNav from '../../components/ui/TabNav.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { api } from '../../api/index.js';
 import { statusLabel, statusVariant, daysSince, formatDate, formatCurrency } from './homHelpers.js';
 
@@ -51,7 +53,6 @@ export default function PatientDetailModal({ row, initialTab = 'overview', onClo
 
   if (!row) return null;
 
-  const initials = (row.patientName || '').split(' ').map((n) => n[0]).join('').slice(0, 2);
   const total = entries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   const field = (label, value) => (
@@ -62,82 +63,14 @@ export default function PatientDetailModal({ row, initialTab = 'overview', onClo
   );
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="modal-content" style={{ maxWidth: 800 }}>
-        <div className="modal-header" style={{ display: 'block' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <div className="avatar-circle" id="pd-avatar">{initials}</div>
-              <div>
-                <h2 className="h2" style={{ fontSize: 20 }} id="pd-name">{row.patientName}</h2>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4, fontSize: 14 }}>
-                  <span style={{ color: 'var(--text-secondary)' }} id="pd-uhid">{row.patientUhid}</span>
-                  <span style={{ color: 'var(--border)' }}>{'·'}</span>
-                  <span id="pd-status-badge"><Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge></span>
-                  <span style={{ color: 'var(--border)' }}>{'·'}</span>
-                  <span style={{ color: 'var(--text-secondary)' }} id="pd-dept">{row.department || '-'}</span>
-                </div>
-              </div>
-            </div>
-            <button className="btn btn-outline btn-sm" style={{ border: 'none', padding: '4px 8px' }} onClick={onClose}>{'✕'}</button>
-          </div>
-
-          <div className="modal-tabs">
-            <button className={'modal-tab' + (tab === 'overview' ? ' active' : '')} id="tab-overview" onClick={() => setTab('overview')}>
-              Overview &amp; Ward Care
-            </button>
-            <button className={'modal-tab' + (tab === 'supply' ? ' active' : '')} id="tab-supply" onClick={() => setTab('supply')}>
-              Billing Ledger
-            </button>
-          </div>
-        </div>
-
-        <div className="modal-body">
-          <div className={'tab-content-panel' + (tab === 'overview' ? ' active' : '')} id="content-overview">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
-              {field('Age / Gender', row.patientAge + ' / ' + row.patientGender)}
-              {field('Contact Number', row.patientPhone)}
-              {field('Blood Group', row.patientBloodGroup)}
-              {field('Department', row.department || '-')}
-              {field('Assigned Bed', row.bedNumber)}
-              {field('Attending Physician', row.doctorName)}
-              {field('Admission Date', formatDate(row.decided_at || row.created_at))}
-              {field('Length of Stay', daysSince(row.decided_at || row.created_at) + ' days')}
-            </div>
-          </div>
-
-          <div className={'tab-content-panel' + (tab === 'supply' ? ' active' : '')} id="content-supply">
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
-              Ledger Status:{' '}
-              <span id="pd-ledger-status" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                {billing && billing.ledger ? billing.ledger.status : 'No ledger yet'}
-              </span>
-            </p>
-            <div className="table-scroll-container" style={{ maxHeight: 240, marginBottom: 16 }}>
-              <table className="data-table">
-                <thead><tr><th>Service / Item</th><th>Qty</th><th>Amount</th></tr></thead>
-                <tbody id="pd-charges-tbody">
-                  {entries.length === 0 ? (
-                    <tr><td colSpan="3" style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>No billing ledger entries yet.</td></tr>
-                  ) : (
-                    entries.map((e) => (
-                      <tr key={e.entry_id}>
-                        <td>{servicesById[e.service_id]?.service_name || 'Service #' + e.service_id}</td>
-                        <td>{e.quantity}</td>
-                        <td>{formatCurrency(e.amount)}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ textAlign: 'right', fontWeight: 600, fontSize: 16 }}>
-              Total Billed: <span id="pd-charges-total" style={{ color: 'var(--primary)' }}>{formatCurrency(total)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="modal-footer">
+    <DialogShell
+      open
+      onClose={onClose}
+      size="lg"
+      title={row.patientName}
+      subtitle={`${row.patientUhid} • ${row.department || '-'}`}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, width: '100%' }}>
           <button className="btn btn-secondary btn-default" onClick={onClose}>Close</button>
           <button className="btn btn-outline btn-default" data-flow="goto-billing" onClick={() => setTab('supply')}>
             View Billing Ledger
@@ -148,8 +81,65 @@ export default function PatientDetailModal({ row, initialTab = 'overview', onClo
             </button>
           ) : null}
         </div>
+      }
+    >
+      <div>
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <TabNav
+            tabs={[
+              { id: 'overview', label: 'Overview & Ward Care' },
+              { id: 'supply', label: 'Billing Ledger' },
+            ]}
+            activeTab={tab}
+            onTabChange={setTab}
+          />
+          <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge>
+        </div>
+
+        <div className={'tab-content-panel' + (tab === 'overview' ? ' active' : '')} id="content-overview">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+            {field('Age / Gender', row.patientAge + ' / ' + row.patientGender)}
+            {field('Contact Number', row.patientPhone)}
+            {field('Blood Group', row.patientBloodGroup)}
+            {field('Department', row.department || '-')}
+            {field('Assigned Bed', row.bedNumber)}
+            {field('Attending Physician', row.doctorName)}
+            {field('Admission Date', formatDate(row.decided_at || row.created_at))}
+            {field('Length of Stay', daysSince(row.decided_at || row.created_at) + ' days')}
+          </div>
+        </div>
+
+        <div className={'tab-content-panel' + (tab === 'supply' ? ' active' : '')} id="content-supply">
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
+            Ledger Status:{' '}
+            <span id="pd-ledger-status" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              {billing && billing.ledger ? billing.ledger.status : 'No ledger yet'}
+            </span>
+          </p>
+          <div className="table-scroll-container" style={{ maxHeight: 240, marginBottom: 16 }}>
+            <table className="data-table">
+              <thead><tr><th>Service / Item</th><th>Qty</th><th>Amount</th></tr></thead>
+              <tbody id="pd-charges-tbody">
+                {entries.length === 0 ? (
+                  <EmptyState asTableRow colSpan={3} title="No billing ledger entries yet." />
+                ) : (
+                  entries.map((e) => (
+                    <tr key={e.entry_id}>
+                      <td>{servicesById[e.service_id]?.service_name || 'Service #' + e.service_id}</td>
+                      <td>{e.quantity}</td>
+                      <td>{formatCurrency(e.amount)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ textAlign: 'right', fontWeight: 600, fontSize: 16 }}>
+            Total Billed: <span id="pd-charges-total" style={{ color: 'var(--primary)' }}>{formatCurrency(total)}</span>
+          </div>
+        </div>
       </div>
-    </Modal>
+    </DialogShell>
   );
 }
 

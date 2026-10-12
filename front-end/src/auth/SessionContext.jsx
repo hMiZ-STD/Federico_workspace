@@ -65,6 +65,13 @@ export function SessionProvider({ children }) {
 
       const result = await api.auth.login(actor, email, password, organizationId);
 
+      if (result && result.requiresOrganizationSelection) {
+        return {
+          requiresOrganizationSelection: true,
+          organizations: result.organizations || [],
+        };
+      }
+
       // The per-actor endpoint already enforces this; kept as a second guard.
       if (result.role !== actor) {
         setLastAuthError('That account is not a ' + actor + ' account.');

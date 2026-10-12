@@ -5,6 +5,7 @@ import { api } from '../../api/index.js';
 import { useApi } from '../../hooks/useApi.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useSearchParam } from '../../hooks/useSearchParam.js';
+import PageHeader from '../../components/layout/PageHeader.jsx';
 import DepartmentSelect from '../../components/forms/DepartmentSelect.jsx';
 import { toast } from '../../components/feedback/feedback.js';
 import { formatAge, to12Hour } from './preHelpers.js';
@@ -179,17 +180,15 @@ export default function AppointmentPage() {
   return (
     <>
       <div className="container" style={{ maxWidth: 1080, margin: '24px auto' }}>
-        <div className="directory-header">
-          <div className="directory-title-group">
-            <h2>Schedule Patient Appointment</h2>
-            <p>Select verified patient record, assign specialty department &amp; consulting physician, and allocate appointment time slots.</p>
-          </div>
-          <div className="directory-toolbar">
+        <PageHeader
+          title="Schedule Patient Appointment"
+          subtitle="Select verified patient record, assign specialty department & consulting physician, and allocate appointment time slots."
+          actions={
             <button className="btn green directory-action-btn" type="button" onClick={() => setRegisterOpen(true)}>
               + Register Walk-In Patient
             </button>
-          </div>
-        </div>
+          }
+        />
 
         <div className="appointment-grid">
           <div className="appointment-card-section">

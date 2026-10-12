@@ -10,26 +10,18 @@ import { toast } from '../../components/feedback/feedback.js';
 import { inr, statusChipClass } from './platformHelpers.js';
 import ProvisionDialog from './ProvisionDialog.jsx';
 import OrgDetailDialog from './OrgDetailDialog.jsx';
+import AppNavbar from '../../components/layout/AppNavbar.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
+import TabNav from '../../components/ui/TabNav.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import platformCss from '../../styles/platform/platform.css?inline';
 
-/**
- * Ported from platform/platform-dashboard.html + platform-dashboard.js, then
- * streamlined into an executive dashboard: four KPI cards (MRR, active
- * organizations, platform bed utilization, active patients), a tenant
- * directory with bed-capacity bars, and the 3-field provisioning dialog.
- *
- * One GET /platform/usage feeds everything. (The legacy page called it twice
- * per load, once for the stats and again for the tenants table.)
- */
-function Stat({ value, label, revenue }) {
-  return (
-    <div className={'stat-card' + (revenue ? ' revenue-card' : '')}>
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-    </div>
-  );
-}
+const PLATFORM_TABS = [
+  { id: 'overview', label: 'Overview & Analytics' },
+  { id: 'organizations', label: 'Hospital Tenants' },
+  { id: 'rates', label: 'Pricing & Rate Card' },
+];
 
 function bedUtilization(occupied, total) {
   return total > 0 ? Math.round((occupied / total) * 100) : 0;
@@ -57,7 +49,7 @@ function OverviewTab({ usage, orgs, activity, onOpenOrg }) {
     return (
       <>
         <div className="stat-grid" id="platform-stats">
-          <div className="md-empty-state"><span>Loading platform metrics&hellip;</span></div>
+          <EmptyState title="Loading platform metrics…" />
         </div>
       </>
     );
@@ -69,16 +61,20 @@ function OverviewTab({ usage, orgs, activity, onOpenOrg }) {
   return (
     <>
       <div className="stat-grid" id="platform-stats">
-        <Stat revenue value={inr(usage.total_mrr)} label="Monthly Recurring Revenue (MRR)" />
-        <Stat value={(usage.active_organizations || 0) + ' / ' + (usage.total_organizations || 0)} label="Active Organizations" />
-        <Stat value={bedUtilization(occupiedBeds, totalBeds) + '%'} label={'Bed Utilization (' + occupiedBeds + ' / ' + totalBeds + ')'} />
-        <Stat value={usage.total_active_admissions || 0} label="Active Patients" />
+        <StatCard variant="primary" value={inr(usage.total_mrr)} label="Monthly Recurring Revenue (MRR)" />
+        <StatCard value={`${usage.active_organizations || 0} / ${usage.total_organizations || 0}`} label="Active Organizations" />
+        <StatCard
+          value={`${bedUtilization(occupiedBeds, totalBeds)}%`}
+          label={`Bed Utilization (${occupiedBeds} / ${totalBeds})`}
+          variant={bedUtilization(occupiedBeds, totalBeds) >= 75 ? 'warning' : 'default'}
+        />
+        <StatCard value={usage.total_active_admissions || 0} label="Active Patients" variant="info" />
       </div>
 
       <h2 className="section-heading">Hospital Tenant Directory</h2>
       <div className="org-mini-grid" id="overview-org-list">
         {orgs.length === 0 ? (
-          <div className="md-empty-state"><span>No organizations yet.</span></div>
+          <EmptyState title="No organizations yet." />
         ) : (
           orgs.map((org) => {
             const monthlyFee = org.subscription ? inr(org.subscription.price_monthly) + '/mo' : '—';
@@ -115,11 +111,11 @@ function OverviewTab({ usage, orgs, activity, onOpenOrg }) {
       <h2 className="section-heading">Recent Platform Activity Audit Log</h2>
       <div className="activity-card" id="platform-activity-feed">
         {activity === null ? (
-          <div className="md-empty-state"><span>Loading activity log&hellip;</span></div>
+          <EmptyState title="Loading activity log…" />
         ) : activity === false ? (
-          <div className="md-empty-state"><span>Could not load activity feed.</span></div>
+          <EmptyState title="Could not load activity feed." />
         ) : activity.length === 0 ? (
-          <div className="md-empty-state"><span>No platform activity recorded yet.</span></div>
+          <EmptyState title="No platform activity recorded yet." />
         ) : (
           activity.slice(0, 10).map((item, i) => {
             const orgName = item.target_organization_id
@@ -404,49 +400,29 @@ export default function PlatformDashboardPage() {
 
   return (
     <>
-      <header className="md-topbar">
-        <div className="md-brand">
-          <span className="md-brand-mark">F</span>
-          <span>Federico Platform</span>
-          <span className="platform-badge">Super User</span>
-        </div>
-        <div className="topbar-actions">
-          <span className="user-pill" id="current-user-label">
-            {session ? session.displayName + ' · ' + session.email : ''}
-          </span>
-          <button
-            className="md-btn md-btn-outlined"
-            id="logout-btn"
-            style={{ borderRadius: 'var(--radius-full, 9999px)', padding: '6px 16px', fontSize: 12 }}
-            onClick={async () => {
-              await api.platform.auth.logout();
-              await logout();
-              navigate(LOGIN_PATH);
-            }}
-          >
-            Log out
-          </button>
-        </div>
-      </header>
+      <AppNavbar
+        brandName="Federico Platform"
+        roleName="Super User"
+        hospitalName="Platform Console"
+        userProfile={{
+          name: session?.displayName || 'Super User',
+          subtitle: session?.email || 'Platform Administrator',
+        }}
+        onLogout={async () => {
+          await api.platform.auth.logout();
+          await logout();
+          navigate(LOGIN_PATH);
+        }}
+      />
 
       <main className="md-container platform-page">
-        <div className="md-tabs" role="tablist">
-          {[
-            ['overview', 'Overview & Analytics'],
-            ['organizations', 'Hospital Tenants'],
-            ['rates', 'Pricing & Rate Card'],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              className={'md-tab' + (tab === id ? ' is-active' : '')}
-              data-tab={id}
-              type="button"
-              onClick={() => setTab(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <TabNav
+          tabs={PLATFORM_TABS}
+          activeTab={tab}
+          onChange={setTab}
+          variant="underline"
+          className="platform-tabs"
+        />
 
         <section className={'tab-panel md-fade-switch' + (tab === 'overview' ? '' : ' is-hidden')} id="panel-overview">
           <OverviewTab usage={usage} orgs={orgs} activity={activity} onOpenOrg={setDetailOrgId} />

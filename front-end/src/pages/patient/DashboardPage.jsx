@@ -6,6 +6,7 @@ import { usePatientStore } from './usePatientStore.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { forRole } from '../../lib/sanitizer.js';
 import { toast } from '../../components/feedback/feedback.js';
+import StatCard from '../../components/ui/StatCard.jsx';
 import AppointmentRows from './AppointmentRows.jsx';
 import VisitItems from './VisitItems.jsx';
 import DocumentGroup from './DocumentGroup.jsx';
@@ -107,31 +108,29 @@ export default function DashboardPage() {
         <section className="dashboard-layout">
           <div className="content-area">
             <section className="summary-grid">
-              <article className="summary-card">
-                <h2>{upcomingAppointments.length}</h2>
-                <p>Upcoming Appointments</p>
-                {upcomingAppointments.length > 0 ? (
-                  <small className="info-teal">
-                    Next: {upcomingAppointments[0].displayDate}, {upcomingAppointments[0].time}
-                  </small>
-                ) : (
-                  <small>No upcoming appointments</small>
-                )}
-              </article>
-
-              <article className="summary-card">
-                <h2>₹{totalOwed.toLocaleString('en-IN')}</h2>
-                <p>Pending Bills</p>
-                <small className={unpaid.length > 0 ? 'info-warning' : 'info-teal'}>
-                  {unpaid.length} bill{unpaid.length !== 1 ? 's' : ''} due
-                </small>
-              </article>
-
-              <article className="summary-card">
-                <h2>{lastVisitHeading}</h2>
-                <p>Last Visit</p>
-                <small className={past.length > 0 ? 'info-teal' : ''}>{lastVisitCaption}</small>
-              </article>
+              <StatCard
+                label="Upcoming Appointments"
+                value={upcomingAppointments.length}
+                sub={
+                  upcomingAppointments.length > 0
+                    ? `Next: ${upcomingAppointments[0].displayDate}, ${upcomingAppointments[0].time}`
+                    : 'No upcoming appointments'
+                }
+                variant="primary"
+              />
+              <StatCard
+                label="Pending Bills"
+                value={`₹${totalOwed.toLocaleString('en-IN')}`}
+                sub={`${unpaid.length} bill${unpaid.length !== 1 ? 's' : ''} due`}
+                variant={unpaid.length > 0 ? 'warning' : 'success'}
+                to="/Patient/patient-billing.html"
+              />
+              <StatCard
+                label="Last Visit"
+                value={lastVisitHeading}
+                sub={lastVisitCaption}
+                variant="info"
+              />
             </section>
 
             <section className="panel table-panel">

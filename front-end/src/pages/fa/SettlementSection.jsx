@@ -2,9 +2,10 @@
 
 import { api } from '../../api/index.js';
 import { useApi } from '../../hooks/useApi.js';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { loadLedgerEntries, ledgerTotal, formatCurrency } from './faHelpers.js';
 import * as actions from './faActions.js';
-import * as S from './faStyles.js';
 
 /**
  * Cashier & discharge settlement for the selected admission (formerly the
@@ -29,16 +30,14 @@ export default function SettlementSection({ ctx, row }) {
   if (!row.dischargeApproved) {
     return (
       <>
-        <h2 style={S.pageTitle}>
-          Final Discharge Summary |{' '}
-          <span style={{ color: 'var(--color-muted-fg)' }}>{row.patient.name || '-'}</span>
-        </h2>
-        <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-          <h2 style={{ color: 'var(--color-fg)' }}>Awaiting HOM discharge approval</h2>
-          <p style={{ color: 'var(--color-muted-fg)' }}>
-            FA can finalize billing only after HOM approves this patient&apos;s discharge request.
-          </p>
-        </div>
+        <PageHeader
+          title="Final Discharge Summary"
+          subtitle={row.patient.name || '-'}
+        />
+        <EmptyState
+          title="Awaiting HOM discharge approval"
+          message="FA can finalize billing only after HOM approves this patient's discharge request."
+        />
       </>
     );
   }
@@ -46,26 +45,28 @@ export default function SettlementSection({ ctx, row }) {
   if (row.ledger && row.ledger.status === 'PAID') {
     return (
       <>
-        <h2 style={S.pageTitle}>
-          Final Discharge Summary |{' '}
-          <span style={{ color: 'var(--color-muted-fg)' }}>{row.patient.name || '-'}</span>
-        </h2>
-        <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-          <h2 style={{ color: 'var(--color-accent)' }}>Payment Received</h2>
-          <p>
-            Billing is finalized.{' '}
-            <a
-              href="#fa-receipts"
-              style={{ color: 'var(--color-accent)' }}
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('fa-receipts')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
-              View Receipt
-            </a>
-          </p>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px' }}>
+        <PageHeader
+          title="Final Discharge Summary"
+          subtitle={row.patient.name || '-'}
+        />
+        <EmptyState
+          title="Payment Received"
+          message={
+            <span>
+              Billing is finalized.{' '}
+              <a
+                href="#fa-receipts"
+                style={{ color: 'var(--color-accent)' }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('fa-receipts')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                View Receipt
+              </a>
+            </span>
+          }
+          action={
             <button
               className="btn-primary"
               style={{ padding: '12px 20px' }}
@@ -73,8 +74,8 @@ export default function SettlementSection({ ctx, row }) {
             >
               Print Discharge Summary
             </button>
-          </div>
-        </div>
+          }
+        />
       </>
     );
   }
@@ -97,10 +98,10 @@ function Settlement({ ctx, row, entries, insurance }) {
 
   return (
     <>
-      <h2 style={S.pageTitle}>
-        {pageTitleText} |{' '}
-        <span style={{ color: 'var(--color-muted-fg)' }}>{row.patient.name || '-'}</span>
-      </h2>
+      <PageHeader
+        title={pageTitleText}
+        subtitle={row.patient.name || '-'}
+      />
 
       <div
         className="card"

@@ -7,6 +7,10 @@ import { usePolling } from '../../hooks/usePolling.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
+import SearchToolbar from '../../components/ui/SearchToolbar.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { csvEscape, downloadCsv } from '../../lib/csv.js';
 import { toast } from '../../components/feedback/feedback.js';
 import { formatCurrency, formatDate } from './homHelpers.js';
@@ -146,16 +150,6 @@ export default function InventoryPage() {
   const sidebarItem = d.items.find((i) => i.item_id === Number(sidebarItemId));
   const sidebarCost = itemCost(sidebarItem, d.services);
 
-  const kpi = (label, value, footer, color) => (
-    <div className="kpi-card">
-      <div>
-        <div className="kpi-label">{label}</div>
-        <div className="kpi-value" style={color ? { color } : undefined}>{value}</div>
-      </div>
-      <div className="kpi-footer">{footer}</div>
-    </div>
-  );
-
   const itemOptions = d.items.map((item) => (
     <option key={item.item_id} value={item.item_id}>
       {item.item_name} ({item.stock_quantity} available)
@@ -165,29 +159,43 @@ export default function InventoryPage() {
   return (
     <>
       <main className="dashboard-container">
-        <div className="header-section">
-          <div>
-            <h1 className="h1" style={{ marginBottom: 8 }}>Non-Clinical Supplies &amp; Inventory</h1>
-            <p className="body-text">Track ward stock levels, request purchase orders, and record patient supply usage</p>
-          </div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <button className="btn btn-secondary btn-default" id="inventory-export" onClick={exportInventory}>Export CSV</button>
-            <button className="btn btn-secondary btn-default" onClick={() => setUsageModalItemId(null)}>Log Usage</button>
-            <button className="btn btn-primary btn-default" onClick={() => setRestockModalItemId(null)}>Request Restock</button>
-          </div>
-        </div>
+        <PageHeader
+          title="Non-Clinical Supplies & Inventory"
+          subtitle="Track ward stock levels, request purchase orders, and record patient supply usage"
+          actions={
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <button className="btn btn-secondary btn-default" id="inventory-export" onClick={exportInventory}>Export CSV</button>
+              <button className="btn btn-secondary btn-default" onClick={() => setUsageModalItemId(null)}>Log Usage</button>
+              <button className="btn btn-primary btn-default" onClick={() => setRestockModalItemId(null)}>Request Restock</button>
+            </div>
+          }
+        />
 
         <div className="metrics-grid" id="metrics-container">
-          {kpi('Total Tracked Supplies', d.items.length, <Badge variant="info">Catalog Live</Badge>)}
-          {kpi('Low Stock Alerts', lowStockItems.length,
-            <Badge variant={lowStockItems.length > 0 ? 'error' : 'success'}>
-              {lowStockItems.length > 0 ? 'Reorder Recommended' : 'Stock Optimal'}
-            </Badge>,
-            lowStockItems.length > 0 ? 'var(--status-error-fg, #b3261e)' : undefined)}
-          {kpi('Pending Purchase Orders', pendingOrders.length,
-            <Badge variant={pendingOrders.length > 0 ? 'warning' : 'neutral'}>{pendingOrders.length + ' Awaiting Delivery'}</Badge>,
-            pendingOrders.length > 0 ? 'var(--status-warning-fg, #7a5300)' : undefined)}
-          {kpi('Total Stock Valuation', formatCurrency(totalValuation), <Badge variant="success">Active Assets</Badge>, 'var(--status-success-fg, #1b5e20)')}
+          <StatCard
+            label="Total Tracked Supplies"
+            value={d.items.length}
+            sub="Catalog Live"
+            variant="info"
+          />
+          <StatCard
+            label="Low Stock Alerts"
+            value={lowStockItems.length}
+            sub={lowStockItems.length > 0 ? 'Reorder Recommended' : 'Stock Optimal'}
+            variant={lowStockItems.length > 0 ? 'error' : 'success'}
+          />
+          <StatCard
+            label="Pending Purchase Orders"
+            value={pendingOrders.length}
+            sub={`${pendingOrders.length} Awaiting Delivery`}
+            variant={pendingOrders.length > 0 ? 'warning' : 'default'}
+          />
+          <StatCard
+            label="Total Stock Valuation"
+            value={formatCurrency(totalValuation)}
+            sub="Active Assets"
+            variant="success"
+          />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24, marginBottom: 24 }}>
@@ -338,26 +346,43 @@ export default function InventoryPage() {
             </div>
           </div>
 
-          <div className="filter-bar" style={{ border: 'none', borderRadius: 0, borderBottom: '1px solid var(--border)', marginBottom: 0, background: 'var(--md-surface-container)', padding: '16px 24px', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-            <input type="text" className="input filter-input" placeholder="Search by item name or category..." style={{ flex: 2, minWidth: 240 }} id="inventory-search"
-              value={filters.search} onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))} />
-            <select className="input filter-dropdown" id="inventory-category" style={{ flex: 1, minWidth: 160, appearance: 'auto' }}
-              value={filters.category} onChange={(e) => setFilters((f) => ({ ...f, category: e.target.value }))}>
-              <option value="">All Categories</option>
-              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select className="input filter-dropdown" id="inventory-status-filter" style={{ flex: 1, minWidth: 150, appearance: 'auto' }}
-              value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
-              <option value="">All Stock Levels</option>
-              <option value="Adequate">Adequate</option>
-              <option value="Low Stock">Low Stock</option>
-              <option value="Critical">Critical</option>
-            </select>
-            <button className="btn btn-outline btn-default" style={{ height: 44 }} id="inventory-clear"
-              onClick={() => setFilters({ search: '', category: '', status: '' })}>
-              Clear Filters
-            </button>
-          </div>
+          <SearchToolbar
+            searchQuery={filters.search}
+            onSearchChange={(v) => setFilters((f) => ({ ...f, search: v }))}
+            placeholder="Search by item name or category..."
+            filters={[
+              {
+                id: 'category',
+                value: filters.category,
+                onChange: (v) => setFilters((f) => ({ ...f, category: v })),
+                options: [
+                  { value: '', label: 'All Categories' },
+                  ...categories.map((c) => ({ value: c, label: c })),
+                ],
+              },
+              {
+                id: 'status',
+                value: filters.status,
+                onChange: (v) => setFilters((f) => ({ ...f, status: v })),
+                options: [
+                  { value: '', label: 'All Stock Levels' },
+                  { value: 'Adequate', label: 'Adequate' },
+                  { value: 'Low Stock', label: 'Low Stock' },
+                  { value: 'Critical', label: 'Critical' },
+                ],
+              },
+            ]}
+            actions={
+              <button
+                className="btn btn-outline btn-default"
+                style={{ height: 44 }}
+                id="inventory-clear"
+                onClick={() => setFilters({ search: '', category: '', status: '' })}
+              >
+                Clear Filters
+              </button>
+            }
+          />
 
           <div className="table-scroll-container" style={{ maxHeight: 560, minHeight: 380, border: 'none', borderRadius: 0 }}>
             <table className="data-table">
@@ -366,7 +391,11 @@ export default function InventoryPage() {
               </thead>
               <tbody id="inventory-tbody">
                 {filteredItems.length === 0 ? (
-                  <tr><td colSpan="7" style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>No inventory items match the current search or filters.</td></tr>
+                  <EmptyState
+                    asTableRow
+                    colSpan={7}
+                    title="No inventory items match the current search or filters"
+                  />
                 ) : (
                   filteredItems.map((item) => {
                     const { label, variant } = computeItemStatus(item);

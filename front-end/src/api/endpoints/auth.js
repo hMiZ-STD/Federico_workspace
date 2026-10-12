@@ -75,6 +75,10 @@ export const auth = {
     return request('GET', '/auth/entitlements');
   },
 
+  demoAccounts() {
+    return request('GET', '/auth/demo-accounts', undefined, { auth: false });
+  },
+
   /** Best-effort server-side invalidation; the local session clears regardless. */
   async logout() {
     try {

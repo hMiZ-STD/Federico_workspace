@@ -7,6 +7,7 @@ import { useApi } from '../../hooks/useApi.js';
 import { toast } from '../../components/feedback/feedback.js';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import marketplacePageCss from '../../styles/marketplace/marketplace-page.css?inline';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 
 /**
@@ -183,19 +184,17 @@ export default function MarketplacePage() {
 
         <section id="org-grid" className="org-grid" aria-live="polite">
           {loading ? (
-            <div className="md-empty-state">
-              <span>Loading hospitals&hellip;</span>
-            </div>
+            <EmptyState title="Loading hospitals…" />
           ) : error ? (
-            <div className="md-empty-state">
-              <strong>Could not load hospitals.</strong>
-              <span>Is the backend running? Refresh to retry.</span>
-            </div>
+            <EmptyState
+              title="Could not load hospitals"
+              message="Is the backend running? Refresh to retry."
+            />
           ) : filtered.length === 0 ? (
-            <div className="md-empty-state">
-              <strong>No hospitals match your search.</strong>
-              <span>Try a different name, city, or specialty.</span>
-            </div>
+            <EmptyState
+              title="No hospitals match your search"
+              message="Try a different name, city, or specialty."
+            />
           ) : (
             filtered.map((org) => <OrgCard key={org.organization_id} org={org} />)
           )}

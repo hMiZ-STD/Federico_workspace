@@ -1,6 +1,6 @@
 'use strict';
 
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import AppointmentRows from './AppointmentRows.jsx';
 import VisitItems from './VisitItems.jsx';
 
@@ -19,52 +19,49 @@ const TITLES = {
 };
 
 export default function AppointmentsModal({ open, view = 'appointments', onClose, appointments, visits, onBookNew }) {
-  const titleId = view === 'visits' ? 'modal-visits-title' : 'modal-appt-title';
+  if (!open) return null;
 
   return (
-    <Modal open={open} onClose={onClose} labelledBy={titleId}>
-      <div className="dash-modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <div className="modal-head">
-          <h2 id={titleId}>{TITLES[view]}</h2>
-          <button className="modal-close" type="button" aria-label="Close" onClick={onClose}>
-            ✕
-          </button>
+    <DialogShell
+      open
+      onClose={onClose}
+      title={TITLES[view]}
+      subtitle={view === 'visits' ? 'Complete clinical visit and outpatient consultation log.' : 'All scheduled and completed consultations.'}
+      footer={
+        view === 'appointments' ? (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="modal-book-btn" type="button" id="modal-book-new" onClick={onBookNew}>
+              + Book New Appointment
+            </button>
+          </div>
+        ) : null
+      }
+    >
+      {view === 'visits' ? (
+        <div className="visit-list modal-visit-list">
+          <VisitItems
+            visits={visits}
+            emptyMessage="No visit history recorded yet."
+            departmentFontSize="12px"
+          />
         </div>
-        <div className="modal-body">
-          {view === 'visits' ? (
-            <div className="visit-list modal-visit-list">
-              <VisitItems
-                visits={visits}
-                emptyMessage="No visit history recorded yet."
-                departmentFontSize="12px"
-              />
-            </div>
-          ) : (
-            <>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Time</th>
-                      <th>Department / Doctor</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <AppointmentRows appointments={appointments} emptyMessage="No appointments found." />
-                  </tbody>
-                </table>
-              </div>
-              <div className="modal-footer-action">
-                <button className="modal-book-btn" type="button" id="modal-book-new" onClick={onBookNew}>
-                  + Book New Appointment
-                </button>
-              </div>
-            </>
-          )}
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Department / Doctor</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <AppointmentRows appointments={appointments} emptyMessage="No appointments found." />
+            </tbody>
+          </table>
         </div>
-      </div>
-    </Modal>
+      )}
+    </DialogShell>
   );
 }

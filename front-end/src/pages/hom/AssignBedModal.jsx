@@ -1,7 +1,7 @@
 'use strict';
 
 import { useState } from 'react';
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
@@ -77,65 +77,63 @@ function BedFirst({ bedId, data, onClose, onChanged }) {
   }
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="modal-content">
-        <div className="modal-header">
-          <h2 className="h2" style={{ fontSize: 20 }}>Assign Bed to Patient</h2>
-          <button className="btn btn-outline btn-sm" style={{ border: 'none', padding: '4px 8px' }} onClick={onClose}>{'✕'}</button>
-        </div>
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <div id="assign-patient-hint" style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Assigning Bed {bed.bed_number}. Select an incoming patient request:
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 12 }}>Pending Bed Requests</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }} id="modal-available-beds">
-              {compatible.length === 0 ? (
-                <p style={{ color: 'var(--text-secondary)', margin: 0, padding: '12px 0' }}>
-                  No pending bed requests queued for this ward.
-                </p>
-              ) : (
-                compatible.map((r) => {
-                  const patient = patientsById[r.patient_id] || {};
-                  const dept = r.pre_request_id ? preRequestsById[r.pre_request_id]?.department : null;
-                  const selected = selectedRequestId === r.bed_request_id;
-                  return (
-                    <button
-                      key={r.bed_request_id}
-                      type="button"
-                      className="modal-bed-btn"
-                      id={'modal-req-' + r.bed_request_id}
-                      onClick={() => setSelectedRequestId(r.bed_request_id)}
-                      style={{
-                        padding: '14px 16px',
-                        borderRadius: 'var(--radius-base)',
-                        border: '1px solid ' + (selected ? 'var(--primary)' : 'var(--border)'),
-                        background: selected ? 'var(--primary-light)' : 'var(--surface)',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{patient.name || '-'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
-                        {patient.uhid || '-'} {'•'} {dept || 'General'} {'•'} Priority: {r.priority || 'NORMAL'}
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-          <div id="assign-bed-error" style={{ display: error ? 'block' : 'none', fontSize: 12, color: 'var(--error)', fontWeight: 500 }}>
-            {error}
-          </div>
-        </div>
-        <div className="modal-footer" style={{ justifyContent: 'flex-end', gap: 12 }}>
+    <DialogShell
+      open
+      onClose={onClose}
+      title="Assign Bed to Patient"
+      subtitle={`Assigning Bed ${bed.bed_number}. Select an incoming patient request:`}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, width: '100%' }}>
           <button className="btn btn-secondary btn-default" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary btn-default" onClick={confirm}>Confirm Admission</button>
         </div>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 12 }}>Pending Bed Requests</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }} id="modal-available-beds">
+            {compatible.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', margin: 0, padding: '12px 0' }}>
+                No pending bed requests queued for this ward.
+              </p>
+            ) : (
+              compatible.map((r) => {
+                const patient = patientsById[r.patient_id] || {};
+                const dept = r.pre_request_id ? preRequestsById[r.pre_request_id]?.department : null;
+                const selected = selectedRequestId === r.bed_request_id;
+                return (
+                  <button
+                    key={r.bed_request_id}
+                    type="button"
+                    className="modal-bed-btn"
+                    id={'modal-req-' + r.bed_request_id}
+                    onClick={() => setSelectedRequestId(r.bed_request_id)}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: 'var(--radius-base)',
+                      border: '1px solid ' + (selected ? 'var(--primary)' : 'var(--border)'),
+                      background: selected ? 'var(--primary-light)' : 'var(--surface)',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{patient.name || '-'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                      {patient.uhid || '-'} {'•'} {dept || 'General'} {'•'} Priority: {r.priority || 'NORMAL'}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+        <div id="assign-bed-error" style={{ display: error ? 'block' : 'none', fontSize: 12, color: 'var(--error)', fontWeight: 500 }}>
+          {error}
+        </div>
       </div>
-    </Modal>
+    </DialogShell>
   );
 }
 
@@ -196,80 +194,12 @@ function RequestFirst({ bedRequestId, data, onClose, onChanged }) {
   );
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="modal-content">
-        <div className="modal-header">
-          <h2 className="h2" style={{ fontSize: 20 }} id="modal-admit-title">
-            Bed Request {'—'} {patient.name || 'Patient'}
-          </h2>
-          <button className="btn btn-outline btn-sm" style={{ border: 'none', padding: '4px 8px' }} onClick={onClose}>
-            {'✕'}
-          </button>
-        </div>
-
-        <div className="modal-body" style={{ gap: 24, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {field('Name', patient.name || '-')}
-            {field('UHID', patient.uhid || '-')}
-          </div>
-
-          <div style={{ background: 'var(--neutral-bg)', padding: 16, borderRadius: 'var(--radius-base)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div>
-              <div className="label">Department</div>
-              <div style={{ marginTop: 4 }}><Badge variant="info">{preRequest?.department || 'General'}</Badge></div>
-            </div>
-            <div>
-              <div className="label">Priority</div>
-              <div style={{ marginTop: 4 }}>
-                <Badge variant={priorityVariant(request.priority)}>{request.priority || 'NORMAL'}</Badge>
-              </div>
-            </div>
-            {field('Time Waiting', formatDateTime(request.requested_at))}
-            {field('Requested By', preRequest ? 'PRE' : 'HOM')}
-            <div>
-              <div className="label">Suggested Ward</div>
-              <div style={{ marginTop: 4 }}>
-                {ward ? <Badge variant="success">{ward.ward_name}</Badge> : <span style={{ color: 'var(--text-secondary)' }}>Any ward</span>}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div className="label" style={{ marginBottom: 12, fontSize: 14, textTransform: 'none' }}>Available Beds</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} id="modal-admit-beds">
-              {availableBeds.length === 0 ? (
-                <div style={{ padding: 16, border: '1px dashed var(--border)', borderRadius: 8, color: 'var(--text-secondary)' }}>
-                  No available beds for this request.
-                </div>
-              ) : (
-                availableBeds.map((bed) => (
-                  <button
-                    key={bed.bed_id}
-                    type="button"
-                    className="bed-option-btn"
-                    id={'bed-opt-' + bed.bed_id}
-                    onClick={() => setSelectedBedId(bed.bed_id)}
-                    style={{
-                      padding: 16,
-                      borderRadius: 8,
-                      border: '2px solid ' + (selectedBedId === bed.bed_id ? 'var(--primary)' : 'var(--border)'),
-                      background: selectedBedId === bed.bed_id ? 'var(--primary-light)' : 'white',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{bed.bed_number}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
-                      {wardsById[bed.ward_id]?.ward_name || ''}
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+    <DialogShell
+      open
+      onClose={onClose}
+      title={`Bed Request — ${patient.name || 'Patient'}`}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
           <button className="btn btn-secondary btn-default" onClick={onClose}>Cancel</button>
           <div style={{ display: 'flex', gap: 12 }}>
             <button className="btn btn-danger btn-default" data-flow="reject-request" onClick={reject}>Reject Request</button>
@@ -278,7 +208,69 @@ function RequestFirst({ bedRequestId, data, onClose, onChanged }) {
             </button>
           </div>
         </div>
+      }
+    >
+      <div style={{ gap: 24, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          {field('Name', patient.name || '-')}
+          {field('UHID', patient.uhid || '-')}
+        </div>
+
+        <div style={{ background: 'var(--neutral-bg)', padding: 16, borderRadius: 'var(--radius-base)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div>
+            <div className="label">Department</div>
+            <div style={{ marginTop: 4 }}><Badge variant="info">{preRequest?.department || 'General'}</Badge></div>
+          </div>
+          <div>
+            <div className="label">Priority</div>
+            <div style={{ marginTop: 4 }}>
+              <Badge variant={priorityVariant(request.priority)}>{request.priority || 'NORMAL'}</Badge>
+            </div>
+          </div>
+          {field('Time Waiting', formatDateTime(request.requested_at))}
+          {field('Requested By', preRequest ? 'PRE' : 'HOM')}
+          <div>
+            <div className="label">Suggested Ward</div>
+            <div style={{ marginTop: 4 }}>
+              {ward ? <Badge variant="success">{ward.ward_name}</Badge> : <span style={{ color: 'var(--text-secondary)' }}>Any ward</span>}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="label" style={{ marginBottom: 12, fontSize: 14, textTransform: 'none' }}>Available Beds</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} id="modal-admit-beds">
+            {availableBeds.length === 0 ? (
+              <div style={{ padding: 16, border: '1px dashed var(--border)', borderRadius: 8, color: 'var(--text-secondary)' }}>
+                No available beds for this request.
+              </div>
+            ) : (
+              availableBeds.map((bed) => (
+                <button
+                  key={bed.bed_id}
+                  type="button"
+                  className="bed-option-btn"
+                  id={'bed-opt-' + bed.bed_id}
+                  onClick={() => setSelectedBedId(bed.bed_id)}
+                  style={{
+                    padding: 16,
+                    borderRadius: 8,
+                    border: '2px solid ' + (selectedBedId === bed.bed_id ? 'var(--primary)' : 'var(--border)'),
+                    background: selectedBedId === bed.bed_id ? 'var(--primary-light)' : 'white',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{bed.bed_number}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+                    {wardsById[bed.ward_id]?.ward_name || ''}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
       </div>
-    </Modal>
+    </DialogShell>
   );
 }

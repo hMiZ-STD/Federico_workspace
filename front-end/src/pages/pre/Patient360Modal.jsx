@@ -1,7 +1,7 @@
 'use strict';
 
-import { useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import DialogShell from '../../components/layout/DialogShell.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { statusLabel, formatDate, to12Hour } from './preHelpers.js';
 
 /**
@@ -13,15 +13,6 @@ import { statusLabel, formatDate, to12Hour } from './preHelpers.js';
  * appointment is not listed twice.
  */
 export default function Patient360Modal({ patient, doctorsById, bedsById, onClose }) {
-  useEffect(() => {
-    if (!patient) return undefined;
-    function onKeydown(e) {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', onKeydown);
-    return () => document.removeEventListener('keydown', onKeydown);
-  }, [patient, onClose]);
-
   if (!patient) return null;
 
   const seen = new Set();
@@ -40,21 +31,21 @@ export default function Patient360Modal({ patient, doctorsById, bedsById, onClos
     </div>
   );
 
-  return createPortal(
-    <div id="patientHistoryModal" className="popup active" role="dialog" aria-modal="true" style={{ display: 'flex' }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="emergency-modal-content" style={{ maxWidth: 720 }}>
-        <div className="emergency-modal-head">
-          <div>
-            <h2 id="historyModalTitle" style={{ color: 'var(--md-primary, #6750a4)' }}>
-              {patient.name} ({patient.uhid})
-            </h2>
-            <p id="historyModalSubtitle">
-              {(patient.age || 'Unknown Age')} {'•'} {patient.gender || '—'} {'•'} Registered on {formatDate(patient.created_at)}
-            </p>
-          </div>
-          <button className="emergency-modal-close" type="button" onClick={onClose} aria-label="Close modal">{'✕'}</button>
+  return (
+    <DialogShell
+      open
+      onClose={onClose}
+      size="lg"
+      title={`${patient.name} (${patient.uhid})`}
+      subtitle={`${patient.age || 'Unknown Age'} • ${patient.gender || '—'} • Registered on ${formatDate(patient.created_at)}`}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+          <button className="btn suggest" type="button" style={{ borderRadius: 'var(--radius-full, 9999px)', padding: '8px 20px' }} onClick={onClose}>
+            Close
+          </button>
         </div>
+      }
+    >
 
         <div style={{ background: 'var(--md-surface-container-low, #f8fafc)', border: '1px solid var(--md-outline-variant, #e2e8f0)', padding: '16px 20px', borderRadius: 12, marginBottom: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, fontSize: 13 }}>
           {headerCell('UHID', patient.uhid || '--', 'var(--md-primary, #6750a4)')}
@@ -81,9 +72,7 @@ export default function Patient360Modal({ patient, doctorsById, bedsById, onClos
           </h3>
           <div id="modalAppointmentsContainer" style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--md-outline-variant, #e2e8f0)', borderRadius: 8 }}>
             {encounters.length === 0 ? (
-              <div style={{ padding: 16, textAlign: 'center', color: 'var(--color-muted-fg)', fontSize: 12 }}>
-                No recorded outpatient appointments.
-              </div>
+              <EmptyState title="No recorded outpatient appointments." />
             ) : (
               <table style={{ width: '100%', fontSize: 12, margin: 0 }}>
                 <thead>
@@ -118,9 +107,7 @@ export default function Patient360Modal({ patient, doctorsById, bedsById, onClos
           </h3>
           <div id="modalAdmissionsContainer" style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--md-outline-variant, #e2e8f0)', borderRadius: 8 }}>
             {!patient.admissions || patient.admissions.length === 0 ? (
-              <div style={{ padding: 16, textAlign: 'center', color: 'var(--color-muted-fg)', fontSize: 12 }}>
-                No recorded inpatient admissions.
-              </div>
+              <EmptyState title="No recorded inpatient admissions." />
             ) : (
               <table style={{ width: '100%', fontSize: 12, margin: 0 }}>
                 <thead>
@@ -146,15 +133,7 @@ export default function Patient360Modal({ patient, doctorsById, bedsById, onClos
             )}
           </div>
         </div>
-
-        <div className="emergency-modal-actions" style={{ justifyContent: 'flex-end' }}>
-          <button className="btn suggest" type="button" style={{ borderRadius: 'var(--radius-full, 9999px)', padding: '8px 20px' }} onClick={onClose}>
-            Close
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+    </DialogShell>
   );
 }
 

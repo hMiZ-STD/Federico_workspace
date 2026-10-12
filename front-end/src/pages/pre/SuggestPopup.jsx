@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
 import { sortDoctorsForDepartment, to12Hour, to24Hour } from './preHelpers.js';
-import PrePopup, { DoctorOptions } from './PrePopup.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
+import { DoctorOptions } from './PrePopup.jsx';
 
 /**
  * Ported from openSuggest / confirmSuggest in PRE/js/requests.js.
@@ -42,40 +43,38 @@ export default function SuggestPopup({ request, doctors, onClose, onDone }) {
   }
 
   return (
-    <PrePopup className="suggest-popup" id="suggestPopup" onClose={onClose}>
-      <div className="suggest-box">
-        <div className="popup-header-block">
-          <span className="popup-kicker popup-kicker-suggest">Reschedule</span>
-          <h2>Suggest New Slot</h2>
+    <DialogShell
+      open
+      onClose={onClose}
+      size="md"
+      title="Suggest New Slot"
+      subtitle={`${request.patientName || 'Patient'} • Current: ${to12Hour(request.requested_time) || 'Not set'}`}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, width: '100%' }}>
+          <button className="btn btn-secondary btn-default" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary btn-default" onClick={confirm}>Save</button>
         </div>
-        <div className="popup-form-layout">
-          <div className="popup-summary-row">
-            <span className="popup-summary-pill">{request.patientName || 'Patient'}</span>
-            <span className="popup-summary-pill">Current: {to12Hour(request.requested_time) || 'Not set'}</span>
+      }
+    >
+      <div className="popup-form-layout" style={{ margin: 0 }}>
+        <div className="form-group">
+          <label htmlFor="doctorSelect">Doctor</label>
+          <select id="doctorSelect" className="custom-select popup-input" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
+            <DoctorOptions doctors={doctors} department={request.department} sortFn={sortDoctorsForDepartment} />
+          </select>
+        </div>
+        <div className="popup-grid-two">
+          <div className="form-group">
+            <label htmlFor="newDate">New Date</label>
+            <input type="date" id="newDate" className="popup-input" value={newDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => setNewDate(e.target.value)} />
           </div>
           <div className="form-group">
-            <label htmlFor="doctorSelect">Doctor</label>
-            <select id="doctorSelect" className="custom-select popup-input" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
-              <DoctorOptions doctors={doctors} department={request.department} sortFn={sortDoctorsForDepartment} />
-            </select>
+            <label htmlFor="appointTime">New Time</label>
+            <input type="time" id="appointTime" className="popup-input" value={time} onChange={(e) => setTime(e.target.value)} />
           </div>
-          <div className="popup-grid-two">
-            <div className="form-group">
-              <label htmlFor="newDate">New Date</label>
-              <input type="date" id="newDate" className="popup-input" value={newDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => setNewDate(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label htmlFor="appointTime">New Time</label>
-              <input type="time" id="appointTime" className="popup-input" value={time} onChange={(e) => setTime(e.target.value)} />
-            </div>
-          </div>
-        </div>
-        <div className="popup-buttons">
-          <button onClick={confirm}>Save</button>
-          <button onClick={onClose}>Cancel</button>
         </div>
       </div>
-    </PrePopup>
+    </DialogShell>
   );
 }
 

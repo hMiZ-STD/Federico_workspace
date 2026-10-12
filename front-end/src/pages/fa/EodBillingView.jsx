@@ -6,11 +6,12 @@ import { loadBillingOverview, loadLedgerEntries, ledgerTotal, formatCurrency } f
 import { useSelectedRow } from './useSelectedRow.js';
 import * as actions from './faActions.js';
 import PatientPicker from './PatientPicker.jsx';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import ViewFrame from './ViewFrame.jsx';
 import { DischargeQueue } from './FaQueues.jsx';
 import SettlementSection from './SettlementSection.jsx';
 import ReceiptsSection from './ReceiptsSection.jsx';
-import * as S from './faStyles.js';
 
 const DETAIL_ID = 'fa-settlement-detail';
 
@@ -42,9 +43,10 @@ export default function EodBillingView() {
           <DischargeQueue rows={rows} ctx={ctx} detailId={DETAIL_ID} />
           <div id={DETAIL_ID}>
             {!row ? (
-              <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-                <h2>No patient selected.</h2>
-              </div>
+              <EmptyState
+                title="No patient selected"
+                description="Select a patient from the patient picker or discharge queue above to review and settle their bill."
+              />
             ) : (
               <>
                 <EodBill ctx={ctx} row={row} rows={rows} servicesById={data.servicesById} entries={entries || []} />
@@ -74,9 +76,10 @@ function EodBill({ ctx, row, rows, servicesById, entries }) {
 
   return (
     <>
-      <h2 style={S.pageTitle}>
-        EOD Billing | <span style={{ color: 'var(--color-muted-fg)' }}>{row.patient.name || '-'}</span>
-      </h2>
+      <PageHeader
+        title={'EOD Billing — ' + (row.patient.name || '-')}
+        subtitle="Review finalized daily charges and prepare settlement receipts"
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
         <div

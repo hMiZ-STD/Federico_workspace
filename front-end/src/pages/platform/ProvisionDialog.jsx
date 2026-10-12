@@ -1,7 +1,7 @@
 'use strict';
 
 import { useState } from 'react';
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import { MODULE_CATALOG } from './platformHelpers.js';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
@@ -64,42 +64,44 @@ export default function ProvisionDialog({ open, organizations, onClose, onProvis
   if (!open) return null;
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="md-native-dialog" style={{ display: 'block' }}>
-        <form id="provision-form" className="dialog-form" onSubmit={handleSubmit}>
-          <h2 className="md-dialog-title">Provision a New Hospital</h2>
-          <div className="md-field"><label htmlFor="p-name">Hospital / organization name</label><input id="p-name" required placeholder="Enter organization name" value={f.name} onChange={set('name')} /></div>
-          <div className="md-field">
-            <label htmlFor="p-email-domain">Staff email domain</label>
-            <input
-              id="p-email-domain"
-              required
-              placeholder="yourhospital.com"
-              value={emailDomain}
-              onChange={(e) => setF((p) => ({ ...p, emailDomain: e.target.value, domainEdited: true }))}
-            />
-            <span style={{ fontSize: 12, opacity: domainProblem ? 1 : 0.7, color: domainProblem ? 'var(--status-error, #b3261e)' : undefined }}>
-              {domainProblem || 'Every staff login uses this domain, e.g. name.hom@' + (emailDomain || 'yourhospital.com')}
-            </span>
-          </div>
-          <div className="md-field">
-            <label htmlFor="p-admin-email">Admin email</label>
-            <TaggedEmailInput
-              id="p-admin-email"
-              value={f.adminName}
-              onChange={(v) => setF((p) => ({ ...p, adminName: v }))}
-              tag="admin"
-              domain={emailDomain}
-              placeholder="e.g. owner"
-            />
-          </div>
-          <div className="md-field"><label htmlFor="p-admin-password">Admin password</label><input id="p-admin-password" type="password" required placeholder="Enter secure password" value={f.adminPassword} onChange={set('adminPassword')} /></div>
-          <div className="md-dialog-actions">
-            <button type="button" className="md-btn md-btn-text" id="provision-cancel" onClick={onClose}>Cancel</button>
-            <button type="submit" className="md-btn md-btn-filled" id="provision-submit" disabled={Boolean(domainProblem)}>Provision</button>
-          </div>
-        </form>
-      </div>
-    </Modal>
+    <DialogShell
+      open
+      onClose={onClose}
+      title="Provision a New Hospital"
+      subtitle="Onboard a new organization tenant, staff email domain, and master administrator credentials."
+    >
+      <form id="provision-form" className="dialog-form" onSubmit={handleSubmit}>
+        <div className="md-field"><label htmlFor="p-name">Hospital / organization name</label><input id="p-name" required placeholder="Enter organization name" value={f.name} onChange={set('name')} /></div>
+        <div className="md-field">
+          <label htmlFor="p-email-domain">Staff email domain</label>
+          <input
+            id="p-email-domain"
+            required
+            placeholder="yourhospital.com"
+            value={emailDomain}
+            onChange={(e) => setF((p) => ({ ...p, emailDomain: e.target.value, domainEdited: true }))}
+          />
+          <span style={{ fontSize: 12, opacity: domainProblem ? 1 : 0.7, color: domainProblem ? 'var(--status-error, #b3261e)' : undefined }}>
+            {domainProblem || 'Every staff login uses this domain, e.g. name.hom@' + (emailDomain || 'yourhospital.com')}
+          </span>
+        </div>
+        <div className="md-field">
+          <label htmlFor="p-admin-email">Admin email</label>
+          <TaggedEmailInput
+            id="p-admin-email"
+            value={f.adminName}
+            onChange={(v) => setF((p) => ({ ...p, adminName: v }))}
+            tag="admin"
+            domain={emailDomain}
+            placeholder="e.g. owner"
+          />
+        </div>
+        <div className="md-field"><label htmlFor="p-admin-password">Admin password</label><input id="p-admin-password" type="password" required placeholder="Enter secure password" value={f.adminPassword} onChange={set('adminPassword')} /></div>
+        <div className="md-dialog-actions">
+          <button type="button" className="md-btn md-btn-text" id="provision-cancel" onClick={onClose}>Cancel</button>
+          <button type="submit" className="md-btn md-btn-filled" id="provision-submit" disabled={Boolean(domainProblem)}>Provision</button>
+        </div>
+      </form>
+    </DialogShell>
   );
 }

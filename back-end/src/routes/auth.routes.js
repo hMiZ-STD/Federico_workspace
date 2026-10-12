@@ -29,6 +29,7 @@ router.post(
 );
 router.get('/me', requireSession, controller.me);
 router.get('/entitlements', requireSession, controller.entitlements);
+router.get('/demo-accounts', controller.demoAccounts);
 router.post('/logout', requireSession, controller.logout);
 
 module.exports = router;

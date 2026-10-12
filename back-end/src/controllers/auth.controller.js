@@ -42,6 +42,12 @@ function clearSessionCookie(res) {
 }
 
 function respondToLogin(res, email, result) {
+  if (result.requiresOrganizationSelection) {
+    logger.log(
+      `ℹ️ LOGIN REQUIRES ORG SELECTION  email=${email}  count=${result.organizations.length}`,
+    );
+    return res.status(200).json(result);
+  }
   if (result.error) {
     const [status, message, error] =
       LOGIN_ERROR_RESPONSES[result.error] ||
@@ -159,4 +165,16 @@ function entitlements(req, res) {
   res.status(200).json(entitlementService.entitlementsFor(organizationId));
 }
 
-module.exports = { login, loginAsActor, signup, me, logout, entitlements };
+function demoAccounts(req, res) {
+  res.status(200).json(authService.getDemoAccounts());
+}
+
+module.exports = {
+  login,
+  loginAsActor,
+  signup,
+  me,
+  logout,
+  entitlements,
+  demoAccounts,
+};

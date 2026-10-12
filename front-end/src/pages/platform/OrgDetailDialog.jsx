@@ -1,7 +1,7 @@
 'use strict';
 
 import { useState } from 'react';
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import { statusChipClass, inr } from './platformHelpers.js';
 import { api } from '../../api/index.js';
 import { toast, confirm } from '../../components/feedback/feedback.js';
@@ -20,54 +20,54 @@ export default function OrgDetailDialog({ org, organizations, onClose, onChanged
   const modules = org.enabled_modules || [];
 
   return (
-    <Modal open onClose={onClose} className="platform-detail-overlay">
-      <div className="md-native-dialog md-native-dialog-wide" style={{ display: 'block' }}>
-        <div className="dialog-form">
-          <div className="detail-header">
-            <h2 className="md-dialog-title" id="detail-org-name" style={{ margin: 0 }}>
-              {org.name}
-            </h2>
-            <button type="button" className="md-btn md-btn-text" id="detail-close" onClick={onClose}>
-              Close
-            </button>
+    <DialogShell
+      open
+      onClose={onClose}
+      size="lg"
+      title={org.name}
+      subtitle={'Tenant: tenant_' + org.organization_id}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button type="button" className="md-btn md-btn-text" id="detail-close" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      }
+    >
+      <div className="detail-panel" id="detail-summary">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: '0.9rem' }}>
+          <div><strong>Tenant ID:</strong> <code>tenant_{org.organization_id}</code></div>
+          <div>
+            <strong>Status:</strong>{' '}
+            <span className={'md-chip ' + statusChipClass(org.status)}>{org.status}</span>
           </div>
-
-          <div className="detail-panel" id="detail-summary">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: '0.9rem' }}>
-              <div><strong>Tenant ID:</strong> <code>tenant_{org.organization_id}</code></div>
-              <div>
-                <strong>Status:</strong>{' '}
-                <span className={'md-chip ' + statusChipClass(org.status)}>{org.status}</span>
-              </div>
-              <div><strong>Hospital Branches:</strong> {org.hospitals}</div>
-              <div><strong>Total Registered Patients:</strong> {org.patients}</div>
-              <div><strong>Staff Accounts:</strong> {org.users}</div>
-              <div><strong>Bed Occupancy:</strong> {org.beds_occupied} / {org.beds} beds</div>
-              <div><strong>Monthly Subscription Fee:</strong> {inr(org.subscription ? org.subscription.price_monthly : 0)}/mo</div>
-              <div><strong>Payments Collected:</strong> {inr(org.revenue ? org.revenue.payments_collected : 0)}</div>
-            </div>
-            <EmailDomainSection
-              key={org.organization_id}
-              org={org}
-              organizations={organizations}
-              onChanged={onChanged}
-            />
-            <div style={{ marginTop: 16, fontSize: '0.9rem' }}>
-              <strong>Enabled Modules:</strong>
-              <div className="module-pill-list" style={{ marginTop: 8, maxWidth: 'none' }}>
-                {modules.length ? (
-                  modules.map((m) => (
-                    <span className="module-pill active" key={m}>{m}</span>
-                  ))
-                ) : (
-                  <span className="module-pill">None</span>
-                )}
-              </div>
-            </div>
+          <div><strong>Hospital Branches:</strong> {org.hospitals}</div>
+          <div><strong>Total Registered Patients:</strong> {org.patients}</div>
+          <div><strong>Staff Accounts:</strong> {org.users}</div>
+          <div><strong>Bed Occupancy:</strong> {org.beds_occupied} / {org.beds} beds</div>
+          <div><strong>Monthly Subscription Fee:</strong> {inr(org.subscription ? org.subscription.price_monthly : 0)}/mo</div>
+          <div><strong>Payments Collected:</strong> {inr(org.revenue ? org.revenue.payments_collected : 0)}</div>
+        </div>
+        <EmailDomainSection
+          key={org.organization_id}
+          org={org}
+          organizations={organizations}
+          onChanged={onChanged}
+        />
+        <div style={{ marginTop: 16, fontSize: '0.9rem' }}>
+          <strong>Enabled Modules:</strong>
+          <div className="module-pill-list" style={{ marginTop: 8, maxWidth: 'none' }}>
+            {modules.length ? (
+              modules.map((m) => (
+                <span className="module-pill active" key={m}>{m}</span>
+              ))
+            ) : (
+              <span className="module-pill">None</span>
+            )}
           </div>
         </div>
       </div>
-    </Modal>
+    </DialogShell>
   );
 }
 

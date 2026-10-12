@@ -3,6 +3,8 @@
 import * as actions from './faActions.js';
 import { selectAndReveal } from './faHelpers.js';
 import StatusBadge from './StatusBadge.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import * as S from './faStyles.js';
 
 /**
@@ -42,13 +44,7 @@ function Panel({ title, badge, headers, children, style }) {
 }
 
 function EmptyRow({ colSpan, message }) {
-  return (
-    <tr>
-      <td colSpan={colSpan} style={S.emptyCell}>
-        {message}
-      </td>
-    </tr>
-  );
+  return <EmptyState asTableRow colSpan={colSpan} title={message} />;
 }
 
 function dischargeReadyRows(rows) {
@@ -67,25 +63,9 @@ export function LedgerQueues({ rows, ctx, detailId }) {
       <h2 style={S.pageTitle}>Running Ledgers</h2>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-        {[
-          ['Active IPD', activeRows.length, 'var(--color-accent)'],
-          ['Ledgers Pending Setup', pendingLedger.length, 'var(--color-accent)'],
-          ['HOM Discharge Ready', dischargeReady.length, 'var(--status-error)'],
-        ].map(([label, value, color]) => (
-          <div className="card" style={{ padding: '20px', marginBottom: 0 }} key={label}>
-            <div
-              style={{
-                fontSize: '13px',
-                color: 'var(--text-muted)',
-                fontWeight: 700,
-                marginBottom: '12px',
-              }}
-            >
-              {label}
-            </div>
-            <div style={{ fontSize: '26px', fontWeight: 800, color }}>{value}</div>
-          </div>
-        ))}
+        <StatCard label="Active IPD" value={activeRows.length} sub="Current inpatients" />
+        <StatCard label="Ledgers Pending Setup" value={pendingLedger.length} sub="New admissions" variant="warning" />
+        <StatCard label="HOM Discharge Ready" value={dischargeReady.length} sub="Cleared for billing" variant="error" />
       </div>
 
       <Panel

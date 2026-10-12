@@ -342,6 +342,24 @@
         }
       }
     },
+    "/auth/demo-accounts": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get active organizations and demo credentials",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
     "/auth/logout": {
       "post": {
         "tags": [

@@ -1,6 +1,6 @@
 'use strict';
 
-import { Link } from 'react-router-dom';
+import StatCard from '../../components/ui/StatCard.jsx';
 import { useApi } from '../../hooks/useApi.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { loadIntakeData, pendingBedRequestIds, awaitingCheckIn } from './intakeData.js';
@@ -26,20 +26,37 @@ export default function PreDashboardPage() {
     discharge: rows.filter((r) => r.status === 'DISCHARGE_APPROVED' || r.status === 'DISCHARGE_REQUESTED').length,
   };
 
-  const card = (to, title, value) => (
-    <Link to={to} className="card">
-      <h3>{title}</h3>
-      <p>{value}</p>
-    </Link>
-  );
-
   return (
     <>
       <div className="cards">
-        {card('/PRE/pages/request.html', 'Pending Requests', counters.pending + ' Requests')}
-        {card('/PRE/pages/rejected.html', 'Rejected Requests', counters.rejected + ' Requests')}
-        {card('/PRE/pages/admitted.html', 'Admitted Patients', counters.admitted + ' Patients')}
-        {card('/PRE/pages/discharge.html', 'Discharge Approvals', counters.discharge + ' In Queue')}
+        <StatCard
+          to="/PRE/pages/request.html"
+          label="Pending Requests"
+          value={counters.pending}
+          sub="Requests awaiting triage"
+          variant="warning"
+        />
+        <StatCard
+          to="/PRE/pages/rejected.html"
+          label="Rejected Requests"
+          value={counters.rejected}
+          sub="Requests declined"
+          variant="error"
+        />
+        <StatCard
+          to="/PRE/pages/admitted.html"
+          label="Admitted Patients"
+          value={counters.admitted}
+          sub="Current inpatients"
+          variant="success"
+        />
+        <StatCard
+          to="/PRE/pages/discharge.html"
+          label="Discharge Approvals"
+          value={counters.discharge}
+          sub="In discharge queue"
+          variant="info"
+        />
       </div>
 
       <TriageQueue

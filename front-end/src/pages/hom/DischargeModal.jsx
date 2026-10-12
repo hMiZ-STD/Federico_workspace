@@ -1,7 +1,7 @@
 'use strict';
 
 import { useEffect, useState } from 'react';
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
 import { daysSince, formatCurrency } from './homHelpers.js';
@@ -70,51 +70,48 @@ export default function DischargeModal({ row, onClose, onChanged }) {
   );
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="modal-content" style={{ maxWidth: 600 }}>
-        <div className="modal-header">
-          <h2 className="h2" style={{ fontSize: 20 }} id="discharge-title">
-            Approve Discharge {'—'} {row.patientName}
-          </h2>
-          <button className="btn btn-outline btn-sm" style={{ border: 'none', padding: '4px 8px' }} onClick={onClose}>{'✕'}</button>
-        </div>
-
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ background: 'var(--status-warning-bg, #fbf2dc)', border: '1px solid rgba(165, 114, 10, 0.2)', borderRadius: 'var(--radius-base)', padding: 16 }}>
-            <p style={{ color: 'var(--status-warning-fg, #7a5300)', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
-              <strong>Discharge Clearance:</strong> Confirming clearance approves the patient&apos;s
-              release request and notifies PRE to finalize discharge documentation.
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, background: 'var(--neutral-bg)', padding: 16, borderRadius: 'var(--radius-base)' }}>
-            {field('Patient', row.patientName)}
-            {field('UHID', row.patientUhid)}
-            {field('Department', row.department || 'General')}
-            {field('Assigned Bed', row.bedNumber)}
-            {field('Attending Physician', row.doctorName || 'Staff Physician')}
-            {field('Length of Stay', daysSince(row.decided_at || row.created_at) + ' days')}
-          </div>
-
-          <div style={{ background: 'var(--md-surface-container, #ffffff)', border: '1px solid var(--border)', padding: 16, borderRadius: 'var(--radius-base)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' }}>Active Billing Balance</span>
-              <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--primary)' }} id="d-total-cost">
-                {total === null ? 'Calculating...' : total === 0 ? '₹0' : formatCurrency(total)}
-              </span>
-            </div>
-          </div>
-
-          <div id="discharge-form-error" style={{ display: error ? 'block' : 'none', fontSize: 12, color: 'var(--error)', fontWeight: 500 }}>
-            {error}
-          </div>
-        </div>
-
-        <div className="modal-footer">
+    <DialogShell
+      open
+      onClose={onClose}
+      title={'Approve Discharge — ' + row.patientName}
+      subtitle="Confirm clearance to approve the patient release request and notify PRE to finalize discharge."
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
           <button className="btn btn-secondary btn-default" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary btn-default" onClick={confirm}>Confirm Clearance</button>
         </div>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ background: 'var(--status-warning-bg, #fbf2dc)', border: '1px solid rgba(165, 114, 10, 0.2)', borderRadius: 'var(--radius-base)', padding: 16 }}>
+          <p style={{ color: 'var(--status-warning-fg, #7a5300)', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+            <strong>Discharge Clearance:</strong> Confirming clearance approves the patient&apos;s
+            release request and notifies PRE to finalize discharge documentation.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, background: 'var(--neutral-bg)', padding: 16, borderRadius: 'var(--radius-base)' }}>
+          {field('Patient', row.patientName)}
+          {field('UHID', row.patientUhid)}
+          {field('Department', row.department || 'General')}
+          {field('Assigned Bed', row.bedNumber)}
+          {field('Attending Physician', row.doctorName || 'Staff Physician')}
+          {field('Length of Stay', daysSince(row.decided_at || row.created_at) + ' days')}
+        </div>
+
+        <div style={{ background: 'var(--md-surface-container, #ffffff)', border: '1px solid var(--border)', padding: 16, borderRadius: 'var(--radius-base)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' }}>Active Billing Balance</span>
+            <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--primary)' }} id="d-total-cost">
+              {total === null ? 'Calculating...' : total === 0 ? '₹0' : formatCurrency(total)}
+            </span>
+          </div>
+        </div>
+
+        <div id="discharge-form-error" style={{ display: error ? 'block' : 'none', fontSize: 12, color: 'var(--error)', fontWeight: 500 }}>
+          {error}
+        </div>
       </div>
-    </Modal>
+    </DialogShell>
   );
 }

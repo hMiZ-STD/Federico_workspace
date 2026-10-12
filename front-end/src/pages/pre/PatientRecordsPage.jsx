@@ -4,6 +4,10 @@ import { useState } from 'react';
 import { api } from '../../api/index.js';
 import { useApi } from '../../hooks/useApi.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
+import SearchToolbar from '../../components/ui/SearchToolbar.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { formatAge } from './preHelpers.js';
 import Patient360Modal from './Patient360Modal.jsx';
 
@@ -140,26 +144,48 @@ export default function PatientRecordsPage() {
   return (
     <>
       <div className="cards">
-        <div className="card"><h3>Total Registered Patients</h3><p id="kpi-total-patients">{total} Patients</p></div>
-        <div className="card"><h3>Active Inpatients</h3><p id="kpi-active-inpatients" style={{ color: 'var(--status-warning-fg, #b45309)' }}>{inpatients} In Beds</p></div>
-        <div className="card"><h3>Insured Patients</h3><p id="kpi-insured-patients" style={{ color: 'var(--status-success, #15803d)' }}>{insured} Policies</p></div>
+        <StatCard
+          label="Total Registered Patients"
+          value={total}
+          sub="Verified master records"
+        />
+        <StatCard
+          label="Active Inpatients"
+          value={inpatients}
+          sub="Currently occupied beds"
+          variant="warning"
+        />
+        <StatCard
+          label="Insured Patients"
+          value={insured}
+          sub="Active policy holders"
+          variant="success"
+        />
       </div>
 
       <div className="container">
-        <div className="directory-header">
-          <div className="directory-title-group">
-            <h2>Master Patient Directory</h2>
-            <p>Review verified patient demographics, active insurance policies, and complete clinical encounter logs.</p>
-          </div>
-          <div className="directory-toolbar">
-            <input type="text" id="patientSearchInput" placeholder="Search by name, UHID, phone..." className="directory-search-input"
-              value={query} onChange={(e) => setQuery(e.target.value)} />
-            <select id="filterBloodGroup" className="directory-filter-select" value={bloodFilter} onChange={(e) => setBloodFilter(e.target.value)}>
-              <option value="">All Blood Groups</option>
-              {BLOOD_GROUPS.map((b) => <option key={b} value={b}>{b}</option>)}
-            </select>
-          </div>
-        </div>
+        <PageHeader
+          title="Master Patient Directory"
+          subtitle="Review verified patient demographics, active insurance policies, and complete clinical encounter logs."
+          actions={
+            <SearchToolbar
+              searchQuery={query}
+              onSearchChange={setQuery}
+              placeholder="Search by name, UHID, phone..."
+              filters={[
+                {
+                  id: 'bloodGroup',
+                  value: bloodFilter,
+                  onChange: setBloodFilter,
+                  options: [
+                    { value: '', label: 'All Blood Groups' },
+                    ...BLOOD_GROUPS.map((b) => ({ value: b, label: b })),
+                  ],
+                },
+              ]}
+            />
+          }
+        />
 
         <div className="table-container" style={{ margin: 0 }}>
           <table>
@@ -171,9 +197,9 @@ export default function PatientRecordsPage() {
             </thead>
             <tbody id="recordTable">
               {error ? (
-                <tr><td colSpan="9" style={{ color: 'var(--status-error)' }}>Failed to load patient directory: {error.message}</td></tr>
+                <EmptyState asTableRow colSpan={9} title="Failed to load patient directory" message={error.message} />
               ) : filtered.length === 0 ? (
-                <tr><td colSpan="9" style={{ textAlign: 'center', padding: 32, color: 'var(--color-muted-fg)' }}>No matching patient records found</td></tr>
+                <EmptyState asTableRow colSpan={9} title="No matching patient records found" />
               ) : (
                 filtered.map((p) => (
                   <tr key={p.patient_id}>

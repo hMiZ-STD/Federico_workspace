@@ -6,7 +6,11 @@ import { api } from '../../api/index.js';
 import { useApi } from '../../hooks/useApi.js';
 import { usePolling } from '../../hooks/usePolling.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
-import Badge from '../../components/ui/Badge.jsx';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
+import TabNav from '../../components/ui/TabNav.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
+import SearchToolbar from '../../components/ui/SearchToolbar.jsx';
 import { bedStyle } from './homHelpers.js';
 import { toast } from '../../components/feedback/feedback.js';
 import AssignBedModal from './AssignBedModal.jsx';
@@ -80,16 +84,6 @@ export default function BedManagementPage() {
 
   const visibleWards = d.wards.filter((w) => activeTab === 'all' || String(w.ward_id) === activeTab);
 
-  const kpi = (label, value, footer, color) => (
-    <div className="kpi-card">
-      <div>
-        <div className="kpi-label">{label}</div>
-        <div className="kpi-value" style={color ? { color } : undefined}>{value}</div>
-      </div>
-      <div className="kpi-footer">{footer}</div>
-    </div>
-  );
-
   async function toggleMaintenance(bedId) {
     const bed = d.beds.find((b) => b.bed_id === bedId);
     if (!bed) return;
@@ -156,32 +150,20 @@ export default function BedManagementPage() {
   return (
     <>
       <main className="dashboard-container">
-        <div className="header-section">
-          <div>
-            <h1 className="h1" style={{ marginBottom: 8 }}>Bed Management &amp; Allocation</h1>
-            <p className="body-text">Real-time view of all beds, wards, and patient assignments</p>
-          </div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <input
-              type="text"
-              className="input"
+        <PageHeader
+          title="Bed Management & Allocation"
+          subtitle="Real-time view of all beds, wards, and patient assignments"
+          actions={
+            <SearchToolbar
+              searchQuery={search}
+              onSearchChange={setSearch}
               placeholder="Search by UHID, patient name, or bed"
-              style={{ width: 320 }}
-              id="bed-search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
             />
-          </div>
-        </div>
+          }
+        />
 
-        <div className="filter-bar">
-          <div className="tab-group" id="ward-tabs">
-            {tabs.map((tab) => (
-              <button key={tab.id} className={'tab-btn' + (activeTab === tab.id ? ' active' : '')} onClick={() => setActiveTab(tab.id)}>
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        <div className="filter-bar" style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'stretch' }}>
+          <TabNav tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
           <div className="pill-group" id="status-filters">
             {filters.map((f) => (
               <button key={f.id} className={'pill-btn' + (activeFilter === f.id ? ' active' : '')} onClick={() => setActiveFilter(f.id)}>
@@ -192,19 +174,39 @@ export default function BedManagementPage() {
         </div>
 
         <div className="metrics-grid" id="stats-container">
-          {kpi('Total Beds', total, <Badge variant="neutral">All Registered</Badge>)}
-          {kpi('Available Beds', available, <Badge variant="success">Ready for Admission</Badge>, 'var(--status-success-fg, #1b5e20)')}
-          {kpi('Occupied Beds', occupied, <Badge variant="warning">In Active Care</Badge>, 'var(--status-warning-fg, #7a5300)')}
-          {kpi('Under Maintenance', maintenance, <Badge variant="neutral">Out of Service</Badge>, 'var(--text-secondary)')}
+          <StatCard
+            label="Total Beds"
+            value={total}
+            sub="All Registered"
+          />
+          <StatCard
+            label="Available Beds"
+            value={available}
+            sub="Ready for Admission"
+            variant="success"
+          />
+          <StatCard
+            label="Occupied Beds"
+            value={occupied}
+            sub="In Active Care"
+            variant="warning"
+          />
+          <StatCard
+            label="Under Maintenance"
+            value={maintenance}
+            sub="Out of Service"
+            variant="info"
+          />
         </div>
 
         <div id="wards-container">
           {renderedAny ? (
             wardSections
           ) : (
-            <div className="ward-section">
-              <p style={{ margin: 0, color: 'var(--text-secondary)' }}>No beds match the current search or filters.</p>
-            </div>
+            <EmptyState
+              title="No matching beds found"
+              message="No beds match the current search or filters."
+            />
           )}
         </div>
       </main>

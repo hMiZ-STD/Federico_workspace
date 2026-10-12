@@ -1,7 +1,7 @@
 'use strict';
 
 import { useState } from 'react';
-import Modal from '../../components/layout/Modal.jsx';
+import DialogShell from '../../components/layout/DialogShell.jsx';
 import { api } from '../../api/index.js';
 import { toast } from '../../components/feedback/feedback.js';
 import TaggedEmailInput from '../../components/forms/TaggedEmailInput.jsx';
@@ -51,10 +51,13 @@ function StaffForm({ emailDomain, onClose, onSaved }) {
   }
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="md-native-dialog" style={{ display: 'block' }}>
-        <form id="staff-form" className="dialog-form" onSubmit={handleSubmit}>
-          <h2 className="md-dialog-title">Add a Person</h2>
+    <DialogShell
+      open
+      onClose={onClose}
+      title="Add a Person"
+      subtitle="Create a new login with assigned portal role for this organization."
+    >
+      <form id="staff-form" className="dialog-form" onSubmit={handleSubmit}>
           <div className="md-field">
             <label htmlFor="staff-name">Full name</label>
             <input id="staff-name" required placeholder="e.g. Rekha Nair" value={f.name} onChange={set('name')} />
@@ -95,8 +98,7 @@ function StaffForm({ emailDomain, onClose, onSaved }) {
             <button type="submit" className="btn btn-primary btn-default">Create Login</button>
           </div>
         </form>
-      </div>
-    </Modal>
+    </DialogShell>
   );
 }
 

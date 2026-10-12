@@ -8,6 +8,9 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useSession } from '../../auth/useSession.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { statusLabel, formatDateTime, joinPreRequestsWithPatients } from './homHelpers.js';
 import { toast } from '../../components/feedback/feedback.js';
 import AssignBedModal from './AssignBedModal.jsx';
@@ -169,46 +172,48 @@ export default function HomDashboardPage() {
   const profileLabel =
     actor === 'HOM' ? 'Super User · Full CRUD Access' : 'Hospital Operations Manager';
 
-  const kpi = (label, value, footer, valueStyle) => (
-    <div className="kpi-card">
-      <div>
-        <div className="kpi-label">{label}</div>
-        <div className="kpi-value" style={valueStyle}>{value}</div>
-      </div>
-      <div className="kpi-footer">{footer}</div>
-    </div>
-  );
-
   return (
     <>
       <main className="dashboard-container">
-        <div className="header-section">
-          <div>
-            <h1 className="h1" style={{ marginBottom: 8 }}>Bed &amp; Patient Operations Dashboard</h1>
-            <p className="body-text" id="dashboard-date-subtitle">{today} {'·'} Live operational overview</p>
-          </div>
-          <span id="role-badge"><Badge variant="info">{profileLabel}</Badge></span>
-        </div>
+        <PageHeader
+          title="Bed & Patient Operations Dashboard"
+          subtitle={`${today} · Live operational overview`}
+          badge={<Badge variant="info">{profileLabel}</Badge>}
+        />
 
-        <div className="metrics-grid" id="metrics-container">
-          {kpi('Total Beds Managed', totalBeds, <Badge variant="neutral">{available + ' Available · ' + occupied + ' Occupied'}</Badge>)}
-          {kpi('Active Inpatients', activeInpatients, <Badge variant="success">Admitted &amp; Flow</Badge>)}
-          {kpi(
-            'Bed Occupancy Rate',
-            occupancyRate + '%',
-            <Badge variant={occupancyRate >= 90 ? 'error' : occupancyRate >= 75 ? 'warning' : 'success'}>
-              {occupancyRate >= 75 ? 'Nearing capacity' : 'Healthy'}
-            </Badge>,
-            { color: occupancyRate >= 90 ? 'var(--status-error-fg, #b3261e)' : occupancyRate >= 75 ? 'var(--status-warning-fg, #7a5300)' : 'var(--text-primary)' },
-          )}
-          {kpi(
-            'Pending Bed Requests',
-            pending.length,
-            <Badge variant={pending.length > 0 ? 'error' : 'success'}>
-              {pending.length > 0 ? 'Requires action' : 'All clear'}
-            </Badge>,
-            { color: pending.length > 0 ? 'var(--status-error-fg, #b3261e)' : 'var(--text-primary)' },
-          )}
+        <div className="metrics-grid">
+          <StatCard
+            label="Total Beds Managed"
+            value={totalBeds}
+            sub={<Badge variant="neutral">{available + ' Available · ' + occupied + ' Occupied'}</Badge>}
+            variant="default"
+          />
+          <StatCard
+            label="Active Inpatients"
+            value={activeInpatients}
+            sub={<Badge variant="success">Admitted & Flow</Badge>}
+            variant="primary"
+          />
+          <StatCard
+            label="Bed Occupancy Rate"
+            value={occupancyRate + '%'}
+            sub={
+              <Badge variant={occupancyRate >= 90 ? 'error' : occupancyRate >= 75 ? 'warning' : 'success'}>
+                {occupancyRate >= 75 ? 'Nearing capacity' : 'Healthy'}
+              </Badge>
+            }
+            variant={occupancyRate >= 90 ? 'error' : occupancyRate >= 75 ? 'warning' : 'success'}
+          />
+          <StatCard
+            label="Pending Bed Requests"
+            value={pending.length}
+            sub={
+              <Badge variant={pending.length > 0 ? 'error' : 'success'}>
+                {pending.length > 0 ? 'Requires action' : 'All clear'}
+              </Badge>
+            }
+            variant={pending.length > 0 ? 'error' : 'success'}
+          />
         </div>
 
         <div className="dashboard-stack">
@@ -224,7 +229,7 @@ export default function HomDashboardPage() {
                 </thead>
                 <tbody id="admissions-table-body">
                   {pending.length === 0 ? (
-                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: 24 }}>No pending bed requests</td></tr>
+                    <EmptyState asTableRow colSpan={6} title="No pending bed requests" />
                   ) : (
                     pending.map((request) => {
                       const patient = patientsById[request.patient_id] || {};
@@ -260,7 +265,7 @@ export default function HomDashboardPage() {
                 </thead>
                 <tbody id="pre-discharge-body">
                   {dischargePending.length === 0 && dischargeApproved.length === 0 ? (
-                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: 24 }}>No discharge requests from PRE.</td></tr>
+                    <EmptyState asTableRow colSpan={6} title="No discharge requests from PRE." />
                   ) : (
                     <>
                       {dischargePending.map((r) => (
@@ -298,9 +303,10 @@ export default function HomDashboardPage() {
             <h2 className="h2" style={{ fontSize: 18, marginBottom: 16 }}>Operational Activity Log</h2>
             <div id="activity-log-container" className="scrollable-feed flex-col" style={{ gap: 16, maxHeight: 240 }}>
               {sortedLogs.length === 0 ? (
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>
-                  No activity recorded yet.
-                </p>
+                <EmptyState
+                  title="No activity recorded yet"
+                  description="Operational logs will appear here as admissions and bed assignments occur."
+                />
               ) : (
                 sortedLogs.slice(0, 12).map((log, i) => {
                   const parsed = parseOperationalLog(log);

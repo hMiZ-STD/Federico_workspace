@@ -99,6 +99,66 @@ describe('Unified login (email tag → portal, domain → hospital)', () => {
       expect(res.body.role).toBe('Patient');
     });
 
+    it('signs a single-hospital patient in directly without organization_id', async () => {
+      const res = await request(app)
+        .post('/auth/login/patient')
+        .send({
+          email: 'arjun.k@hosp.com',
+          password: 'Hamiz@123',
+        })
+        .expect(200);
+      expect(res.body.role).toBe('Patient');
+      expect(res.body.tenant.organization_id).toBe(1);
+    });
+
+    it('returns dynamic demo credentials from GET /auth/demo-accounts', async () => {
+      const res = await request(app)
+        .get('/auth/demo-accounts')
+        .expect(200);
+      expect(res.body.organizations).toBeDefined();
+      expect(res.body.organizations['1']).toBeDefined();
+      expect(res.body.organizations['2']).toBeDefined();
+      expect(res.body.platform).toBeDefined();
+      expect(res.body.platform.role).toBe('Platform');
+    });
+
+    it('requires organization selection when patient is registered at multiple hospitals with matching credentials', async () => {
+      const multiEmail = 'shared.patient@personal.com';
+      const multiPass = 'Shared@123';
+      authService.signup({
+        name: 'Shared User 1',
+        email: multiEmail,
+        password: multiPass,
+        phone: '+919999900001',
+        dob: '1995-05-05',
+        gender: 'Male',
+        organization_id: 1,
+      });
+      authService.signup({
+        name: 'Shared User 2',
+        email: multiEmail,
+        password: multiPass,
+        phone: '+919999900002',
+        dob: '1995-05-05',
+        gender: 'Male',
+        organization_id: 2,
+      });
+
+      const checkRes = await request(app)
+        .post('/auth/login/patient')
+        .send({ email: multiEmail, password: multiPass })
+        .expect(200);
+      expect(checkRes.body.requiresOrganizationSelection).toBe(true);
+      expect(checkRes.body.organizations.length).toBe(2);
+
+      const directRes = await request(app)
+        .post('/auth/login/patient')
+        .send({ email: multiEmail, password: multiPass, organization_id: 2 })
+        .expect(200);
+      expect(directRes.body.role).toBe('Patient');
+      expect(directRes.body.tenant.organization_id).toBe(2);
+    });
+
     it('rejects an account of another role with 403 WRONG_PORTAL', async () => {
       const res = await request(app)
         .post('/auth/login/hom')

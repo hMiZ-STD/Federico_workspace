@@ -6,6 +6,9 @@ import { useApi } from '../../hooks/useApi.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { escapeHtml } from '../../lib/formatters.js';
 import Button from '../../components/ui/Button.jsx';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { toast, confirm } from '../../components/feedback/feedback.js';
 import WardDialog from './WardDialog.jsx';
 
@@ -57,37 +60,34 @@ export default function DepartmentsPage() {
 
   return (
     <main className="dashboard-container">
-      <div className="header-section">
-        <div>
-          <h1 className="h1" style={{ marginBottom: 8 }}>Departments &amp; Wards</h1>
-          <p className="body-text">
-            Add, resize, or remove the wards patients get admitted into. Every hospital starts with
-            6 standard departments {'—'} adjust the list to fit yours.
-          </p>
-        </div>
-        <button className="btn btn-primary btn-default" id="new-ward-btn" onClick={() => setEditingWard(null)}>
-          + Add Ward
-        </button>
-      </div>
+      <PageHeader
+        title="Departments & Wards"
+        subtitle="Add, resize, or remove the wards patients get admitted into. Every hospital starts with 6 standard departments — adjust the list to fit yours."
+        actions={
+          <button className="btn btn-primary btn-default" id="new-ward-btn" onClick={() => setEditingWard(null)}>
+            + Add Ward
+          </button>
+        }
+      />
 
       <div className="metrics-grid" id="metrics-container">
-        <div className="card" style={{ padding: '18px 20px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Departments / Wards</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', marginTop: 6 }}>{wards.length}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Configured clinical units</div>
-        </div>
-        <div className="card" style={{ padding: '18px 20px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Beds Capacity</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', marginTop: 6 }}>{totalBeds}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Across all hospital wards</div>
-        </div>
-        <div className="card" style={{ padding: '18px 20px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bed Occupancy Rate</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', marginTop: 6 }}>
-            {totalBeds ? Math.round((occupied / totalBeds) * 100) : 0}%
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{occupied} of {totalBeds} beds occupied</div>
-        </div>
+        <StatCard
+          label="Departments / Wards"
+          value={wards.length}
+          sub="Configured clinical units"
+        />
+        <StatCard
+          label="Total Beds Capacity"
+          value={totalBeds}
+          sub="Across all hospital wards"
+          variant="info"
+        />
+        <StatCard
+          label="Bed Occupancy Rate"
+          value={`${totalBeds ? Math.round((occupied / totalBeds) * 100) : 0}%`}
+          sub={`${occupied} of ${totalBeds} beds occupied`}
+          variant={totalBeds && (occupied / totalBeds) >= 0.85 ? 'warning' : 'success'}
+        />
       </div>
 
       <div className="card">
@@ -98,12 +98,12 @@ export default function DepartmentsPage() {
         <div className="card-content" style={{ padding: 0 }}>
           <div id="wards-list">
             {!data ? (
-              <div className="md-empty-state"><span>Loading wards&hellip;</span></div>
+              <EmptyState title="Loading wards…" />
             ) : wards.length === 0 ? (
-              <div className="md-empty-state">
-                <strong>No wards yet.</strong>
-                <span>Add one to start allocating beds.</span>
-              </div>
+              <EmptyState
+                title="No wards yet"
+                message="Add one to start allocating beds."
+              />
             ) : (
               wards.map((ward) => {
                 const wardBeds = bedsForWard(ward.ward_id);

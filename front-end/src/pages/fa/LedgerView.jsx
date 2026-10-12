@@ -9,6 +9,7 @@ import * as actions from './faActions.js';
 import { toast } from '../../components/feedback/feedback.js';
 import PatientPicker from './PatientPicker.jsx';
 import StatusBadge from './StatusBadge.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import ViewFrame from './ViewFrame.jsx';
 import { LedgerQueues } from './FaQueues.jsx';
 import * as S from './faStyles.js';
@@ -35,8 +36,11 @@ export default function LedgerView() {
       {data ? <LedgerQueues rows={rows} ctx={ctx} detailId={DETAIL_ID} /> : null}
       {data ? (
         !row ? (
-          <div className="card" id={DETAIL_ID} style={{ padding: '40px', textAlign: 'center' }}>
-            <h2>No patient selected.</h2>
+          <div id={DETAIL_ID}>
+            <EmptyState
+              title="No patient selected"
+              description="Select an active patient admission to view or update their financial ledger."
+            />
           </div>
         ) : (
           <div id={DETAIL_ID}>
@@ -65,19 +69,19 @@ export default function LedgerView() {
                     Ledger: {row.patient.name || '-'}
                   </h2>
                 </div>
-                <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-                  <h2 style={{ color: 'var(--status-warning-fg)' }}>Ledger not created yet</h2>
-                  <p style={{ color: 'var(--color-muted-fg)' }}>
-                    This patient has been admitted, but finance has not initialized the ledger yet.
-                  </p>
-                  <button
-                    className="btn-primary"
-                    style={{ padding: '10px 18px' }}
-                    onClick={() => actions.createLedgerAndOpen(ctx, row.admission.admission_id)}
-                  >
-                    Create Ledger Now
-                  </button>
-                </div>
+                <EmptyState
+                  title="Ledger not created yet"
+                  description="This patient has been admitted, but finance has not initialized the ledger yet."
+                  action={
+                    <button
+                      className="btn-primary"
+                      style={{ padding: '10px 18px' }}
+                      onClick={() => actions.createLedgerAndOpen(ctx, row.admission.admission_id)}
+                    >
+                      Create Ledger Now
+                    </button>
+                  }
+                />
               </>
             )}
           </div>
@@ -257,11 +261,7 @@ function LoadedLedger({ ctx, row, servicesById, addService, setAddService, addQt
           </thead>
           <tbody>
             {list.length === 0 ? (
-              <tr>
-                <td colSpan="4" style={S.emptyCell}>
-                  No ledger entries found.
-                </td>
-              </tr>
+              <EmptyState asTableRow colSpan={4} title="No ledger entries found." />
             ) : (
               list.map((e) => (
                 <tr key={e.entry_id} style={{ borderBottom: '1px solid var(--color-border)' }}>

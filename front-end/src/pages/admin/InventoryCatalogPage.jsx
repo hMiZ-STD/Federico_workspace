@@ -6,6 +6,8 @@ import { useApi } from '../../hooks/useApi.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Button from '../../components/ui/Button.jsx';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
 import { toast, confirm } from '../../components/feedback/feedback.js';
 import ItemDialog from './ItemDialog.jsx';
 
@@ -38,33 +40,36 @@ export default function InventoryCatalogPage() {
     }
   }
 
-  const metric = (label, value, sub, color) => (
-    <div className="card" style={{ padding: '18px 20px' }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: color || 'var(--text-primary)', marginTop: 6 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{sub}</div>
-    </div>
-  );
-
   return (
     <main className="dashboard-container">
-      <div className="header-section">
-        <div>
-          <h1 className="h1" style={{ marginBottom: 8 }}>Inventory Catalog</h1>
-          <p className="body-text">
-            Add or remove the item types HOM can track stock and log usage against. Every hospital
-            starts with a standard supply catalog.
-          </p>
-        </div>
-        <button className="btn btn-primary btn-default" id="new-item-btn" onClick={() => setDialogOpen(true)}>
-          + Add Item
-        </button>
-      </div>
+      <PageHeader
+        title="Inventory Catalog"
+        subtitle="Add or remove the item types HOM can track stock and log usage against. Every hospital starts with a standard supply catalog."
+        actions={
+          <button className="btn btn-primary btn-default" id="new-item-btn" onClick={() => setDialogOpen(true)}>
+            + Add Item
+          </button>
+        }
+      />
 
       <div className="metrics-grid" id="metrics-container">
-        {metric('Catalog Items', items.length, 'Tracked non-clinical supplies')}
-        {metric('Low Stock Alerts', lowStock, 'Below designated reorder level', lowStock > 0 ? 'var(--error, #EF4444)' : undefined)}
-        {metric('Item Categories', categories, 'Medicine, consumable, equipment, linen')}
+        <StatCard
+          label="Catalog Items"
+          value={items.length}
+          sub="Tracked non-clinical supplies"
+        />
+        <StatCard
+          label="Low Stock Alerts"
+          value={lowStock}
+          sub="Below designated reorder level"
+          variant={lowStock > 0 ? 'error' : 'success'}
+        />
+        <StatCard
+          label="Item Categories"
+          value={categories}
+          sub="Medicine, consumable, equipment, linen"
+          variant="info"
+        />
       </div>
 
       <div className="card">

@@ -5,6 +5,9 @@ import { useApi } from '../../hooks/useApi.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useSession } from '../../auth/useSession.js';
 import { formatCurrency } from '../../lib/formatters.js';
+import PageHeader from '../../components/layout/PageHeader.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 
 const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
@@ -129,39 +132,55 @@ export default function AdminDashboardPage() {
 
   const lowStock = items.filter((i) => i.stock_quantity < i.reorder_level);
 
-  const metric = (label, value, sub) => (
-    <div className="card" style={{ padding: '18px 20px' }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', marginTop: 6 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{sub}</div>
-    </div>
-  );
-
   const usageCard = (label, amount, sub) => (
-    <div style={{ padding: '12px 14px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: 8 }}>
-      <div style={{ color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{inr(amount)}</div>
-      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{sub}</div>
-    </div>
+    <StatCard label={label} value={inr(amount)} sub={sub} />
   );
 
   return (
     <main className="dashboard-container">
-      <div className="header-section">
-        <div>
-          <h1 className="h1" style={{ marginBottom: 8 }}>Hospital Operations &amp; Analytics</h1>
-          <p className="body-text" id="subtitle">Real-time overview of clinical flow, resource capacity, and SaaS usage</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Hospital Operations & Analytics"
+        subtitle="Real-time overview of clinical flow, resource capacity, and SaaS usage"
+      />
 
       <div>
-        <div className="metrics-grid" id="metrics-container">
-          {metric('Active Inpatients', activeInpatients, dischargeQueue + ' pending discharge')}
-          {metric('Bed Occupancy', occupancyPct + '%', occupied + ' of ' + beds.length + ' beds occupied')}
-          {metric('Registered Patients', (d.patients || []).length, 'Across all departments')}
-          {metric('Total Appointments', (d.appointments || []).length, 'Booked through portal / PRE')}
-          {metric('Total Revenue Billed', formatCurrency(totalRevenue), 'Cumulative hospital charges')}
-          {metric('Payments Settled', formatCurrency(collected), 'Direct cash & online receipts')}
+        <div className="metrics-grid">
+          <StatCard
+            label="Active Inpatients"
+            value={activeInpatients}
+            sub={dischargeQueue + ' pending discharge'}
+            variant="warning"
+          />
+          <StatCard
+            label="Bed Occupancy"
+            value={occupancyPct + '%'}
+            sub={occupied + ' of ' + beds.length + ' beds occupied'}
+            variant={occupancyPct >= 75 ? 'warning' : 'success'}
+          />
+          <StatCard
+            label="Registered Patients"
+            value={(d.patients || []).length}
+            sub="Across all departments"
+            variant="primary"
+          />
+          <StatCard
+            label="Total Appointments"
+            value={(d.appointments || []).length}
+            sub="Booked through portal / PRE"
+            variant="info"
+          />
+          <StatCard
+            label="Total Revenue Billed"
+            value={formatCurrency(totalRevenue)}
+            sub="Cumulative hospital charges"
+            variant="default"
+          />
+          <StatCard
+            label="Payments Settled"
+            value={formatCurrency(collected)}
+            sub="Direct cash & online receipts"
+            variant="success"
+          />
         </div>
 
         <div className="card" style={{ marginBottom: 24, padding: '20px 24px', borderLeft: '4px solid var(--primary, #0D9488)', background: '#FAFDFB' }}>
@@ -180,7 +199,7 @@ export default function AdminDashboardPage() {
           </div>
           <div id="subscription-usage-breakdown">
             {!data ? (
-              <div className="md-empty-state"><span>Calculating live monthly usage&hellip;</span></div>
+              <EmptyState title="Calculating live monthly usage…" />
             ) : (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 16, fontSize: 13 }}>
@@ -214,9 +233,9 @@ export default function AdminDashboardPage() {
               <div className="card-content">
                 <div id="ward-occupancy-list">
                   {!data ? (
-                    <div className="md-empty-state"><span>Loading&hellip;</span></div>
+                    <EmptyState title="Loading…" />
                   ) : wards.length === 0 ? (
-                    <div className="md-empty-state"><span>No wards configured.</span></div>
+                    <EmptyState title="No wards configured" description="Add wards and clinical departments in the Departments tab." />
                   ) : (
                     wards.map((ward) => {
                       const wardBeds = beds.filter((b) => b.ward_id === ward.ward_id);
@@ -247,7 +266,7 @@ export default function AdminDashboardPage() {
                     <thead><tr><th>Status</th><th>Ledgers</th><th>Total</th></tr></thead>
                     <tbody id="billing-summary-tbody">
                       {Object.keys(byStatus).length === 0 ? (
-                        <tr><td colSpan="3" style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>No billing ledgers yet.</td></tr>
+                        <EmptyState asTableRow colSpan={3} title="No billing ledgers yet." />
                       ) : (
                         Object.entries(byStatus).map(([status, stats]) => (
                           <tr key={status}>
@@ -270,9 +289,9 @@ export default function AdminDashboardPage() {
               <div className="card-content">
                 <div id="low-stock-list">
                   {!data ? (
-                    <div className="md-empty-state"><span>Loading&hellip;</span></div>
+                    <EmptyState title="Loading…" />
                   ) : lowStock.length === 0 ? (
-                    <div className="md-empty-state"><span>All items above reorder level.</span></div>
+                    <EmptyState title="All items above reorder level" description="Stock quantities across all items are healthy." />
                   ) : (
                     lowStock.map((item) => (
                       <div className="alert-card" key={item.item_id} style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--radius-base)', padding: 12, marginBottom: 12 }}>
@@ -292,9 +311,9 @@ export default function AdminDashboardPage() {
               <div className="card-content">
                 <div id="staff-breakdown">
                   {!data ? (
-                    <div className="md-empty-state"><span>Loading&hellip;</span></div>
+                    <EmptyState title="Loading…" />
                   ) : Object.keys(byRole).length === 0 ? (
-                    <div className="md-empty-state"><span>No staff accounts registered.</span></div>
+                    <EmptyState title="No staff accounts registered" description="Invite team members in the People directory." />
                   ) : (
                     Object.entries(byRole).map(([role, count]) => (
                       <div key={role} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>

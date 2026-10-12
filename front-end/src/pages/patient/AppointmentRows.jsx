@@ -1,6 +1,7 @@
 'use strict';
 
 import { StatusBadge, DoctorLine } from './patientDashboardHelpers.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 
 /**
  * The appointments <tbody> is rendered twice with the same markup: once in the
@@ -9,13 +10,7 @@ import { StatusBadge, DoctorLine } from './patientDashboardHelpers.jsx';
  */
 export default function AppointmentRows({ appointments, emptyMessage }) {
   if (appointments.length === 0) {
-    return (
-      <tr>
-        <td colSpan="4" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>
-          {emptyMessage}
-        </td>
-      </tr>
-    );
+    return <EmptyState asTableRow colSpan={4} title={emptyMessage} />;
   }
 
   return appointments.map((a) => (
