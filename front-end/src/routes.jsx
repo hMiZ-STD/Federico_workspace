@@ -4,6 +4,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router-dom';
 import App from './App.jsx';
 import RequireModule, { RequirePlatformUser } from './auth/RequireModule.jsx';
+import { LOGIN_PATH } from './auth/actorHome.js';
 
 
 
@@ -13,7 +14,6 @@ const SignupPage = lazy(() => import('./pages/public/SignupPage.jsx'));
 const OrgSignupPage = lazy(() => import('./pages/public/OrgSignupPage.jsx'));
 const MarketplacePage = lazy(() => import('./pages/public/MarketplacePage.jsx'));
 
-const PlatformLoginPage = lazy(() => import('./pages/platform/PlatformLoginPage.jsx'));
 const PlatformDashboardPage = lazy(() => import('./pages/platform/PlatformDashboardPage.jsx'));
 
 const HomLayout = lazy(() => import('./pages/hom/HomLayout.jsx'));
@@ -93,7 +93,9 @@ const router = createBrowserRouter([
       { path: '/marketplace/marketplace-page.html', element: L(<MarketplacePage />) },
 
       // ---- Platform Super User (its own auth realm) ----
-      { path: '/platform/platform-login.html', element: L(<PlatformLoginPage />) },
+      // Platform staff sign in on the unified login page (name.platform@federico.com);
+      // the old console login URL still resolves for bookmarks.
+      { path: '/platform/platform-login.html', element: <Navigate to={LOGIN_PATH} replace /> },
       {
         path: '/platform/platform-dashboard.html',
         element: (

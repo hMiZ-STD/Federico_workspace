@@ -1,19 +1,24 @@
 'use strict';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/index.js';
 import { useSession } from '../../auth/useSession.js';
 import { useSearchParam } from '../../hooks/useSearchParam.js';
-import { mockAccountsFor } from '../../lib/roleProfiles.js';
+import { mockAccountsByOrg, PLATFORM_DEMO_ACCOUNT } from '../../lib/roleProfiles.js';
+import { resolveLoginIdentity, PORTAL_LABEL } from '../../lib/emailIdentity.js';
 import { getActorHome } from '../../auth/actorHome.js';
 import { toast } from '../../components/feedback/feedback.js';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import loginPageCss from '../../styles/login/login-page.css?inline';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 
-const ROLES = ['Patient', 'PRE', 'HOM', 'FA', 'Admin'];
 const REMEMBER_KEY = 'FedericoRememberMe';
+// How long the email must sit still before the portal chip and the patient
+// hospital picker react, so they don't flicker while a domain is half-typed.
+const IDENTITY_SETTLE_MS = 350;
+const DEMO_ROLE_ORDER = ['Admin', 'HOM', 'PRE', 'FA', 'Patient'];
+const PLATFORM_DEMO_TAB = 'platform';
 
 /** The Remember Me entry, or null when absent or corrupt (ignored as before). */
 function readRemembered() {
@@ -26,61 +31,70 @@ function readRemembered() {
 }
 
 /**
- * Ported from login/login-page.html + login-page.js.
+ * The one sign-in page for every actor. There are no role tabs: the email
+ * says who you are.
  *
- * Preserved exactly: the five role tabs and their order, ?org= preselection,
- * the Remember Me round-trip through localStorage under the same key and shape,
- * the click-to-autofill demo panel, and all three error strings.
+ *   name.hom@citygen.com         → HOM portal of the hospital that owns citygen.com
+ *   name.pre / .fa / .admin@...  → that portal, same domain rule
+ *   name.platform@federico.com   → Platform Super User console
+ *   anything else                → Patient portal; pick your hospital below
+ *
+ * resolveLoginIdentity() makes that call from the public organization list
+ * (each org carries its email_domain); the server enforces it again through
+ * the per-actor endpoint it is sent to.
  */
 export default function LoginPage() {
   usePageStyles(loginPageCss);
   useDocumentTitle('Federico — Sign In');
   const navigate = useNavigate();
-  const { authenticate, getLastAuthError } = useSession();
+  const { authenticate, getLastAuthError, isPlatformUser } = useSession();
   const preselectOrg = useSearchParam('org');
 
   // Remembered credentials seed the initial state directly.
   const [remembered] = useState(readRemembered);
-  const [role, setRole] = useState(
-    () =>
-      ROLES.find((r) => r.toLowerCase() === String(remembered?.role || '').toLowerCase()) || 'Patient',
-  );
   const [organizations, setOrganizations] = useState(null); // null = loading
   const [orgLoadFailed, setOrgLoadFailed] = useState(false);
   const [orgId, setOrgId] = useState('');
+  const [orgTouched, setOrgTouched] = useState(false);
   const [email, setEmail] = useState(remembered?.email || '');
+  const [settledEmail, setSettledEmail] = useState(remembered?.email || '');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(Boolean(remembered));
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [demoTab, setDemoTab] = useState(null);
 
-  // Public organization list, with ?org= then the remembered org as preselection.
+  // Already signed in as platform? Skip straight to the console.
+  useEffect(() => {
+    if (isPlatformUser) navigate(getActorHome('PLATFORM'), { replace: true });
+  }, [isPlatformUser, navigate]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSettledEmail(email), IDENTITY_SETTLE_MS);
+    return () => clearTimeout(t);
+  }, [email]);
+
+  // Public organization list, with ?org= then the remembered org as the
+  // patient hospital preselection.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const orgs = await api.marketplace.organizations();
+        const orgs = (await api.marketplace.organizations()) || [];
         if (cancelled) return;
-        setOrganizations(orgs || []);
+        setOrganizations(orgs);
 
-        let rememberedOrgId = null;
-        try {
-          const saved = localStorage.getItem(REMEMBER_KEY);
-          if (saved) rememberedOrgId = JSON.parse(saved).orgId;
-        } catch {
-          /* ignore */
-        }
-
-        if (preselectOrg && (orgs || []).some((o) => String(o.organization_id) === preselectOrg)) {
+        const rememberedOrgId = readRemembered()?.orgId;
+        if (preselectOrg && orgs.some((o) => String(o.organization_id) === preselectOrg)) {
           setOrgId(preselectOrg);
+          setOrgTouched(true);
         } else if (
           rememberedOrgId &&
-          (orgs || []).some((o) => String(o.organization_id) === String(rememberedOrgId))
+          orgs.some((o) => String(o.organization_id) === String(rememberedOrgId))
         ) {
           setOrgId(String(rememberedOrgId));
-        } else if ((orgs || []).length) {
-          // A native <select> shows its first option when nothing is chosen;
-          // mirror that so the demo panel keys off the same org the user sees.
+          setOrgTouched(true);
+        } else if (orgs.length) {
           setOrgId(String(orgs[0].organization_id));
         }
       } catch {
@@ -95,7 +109,16 @@ export default function LoginPage() {
     };
   }, [preselectOrg]);
 
-  const demoAccounts = (mockAccountsFor(orgId ? Number(orgId) : 1) || {})[role] || [];
+  const identity = useMemo(
+    () => resolveLoginIdentity(settledEmail, organizations),
+    [settledEmail, organizations],
+  );
+  const isPatient = identity?.actor === 'Patient';
+
+  // A patient whose address sits on a hospital's domain most likely belongs
+  // there; preselect it unless the user (or ?org=) already chose.
+  const hintedOrgId = isPatient && identity.org ? String(identity.org.organization_id) : null;
+  const selectedOrgId = !orgTouched && hintedOrgId ? hintedOrgId : orgId;
 
   const handleLogin = useCallback(async () => {
     const trimmedEmail = email.trim();
@@ -103,17 +126,30 @@ export default function LoginPage() {
       setError('Enter both email and password.');
       return;
     }
+    if (organizations === null) {
+      setError('Still loading hospitals, try again in a moment.');
+      return;
+    }
+    // Resolve from what was typed, not the debounced value.
+    const target = resolveLoginIdentity(trimmedEmail, organizations);
+    if (!target) {
+      setError('Enter a valid email address.');
+      return;
+    }
+    let organizationId = null;
+    if (target.actor === 'Patient') {
+      const patientOrgId =
+        !orgTouched && target.org ? String(target.org.organization_id) : orgId;
+      organizationId = patientOrgId ? Number(patientOrgId) : null;
+    } else if (target.org) {
+      organizationId = target.org.organization_id;
+    }
 
     setSubmitting(true);
     try {
-      const authResult = await authenticate(
-        role,
-        trimmedEmail,
-        password,
-        orgId ? Number(orgId) : null,
-      );
+      const authResult = await authenticate(target.actor, trimmedEmail, password, organizationId);
       if (!authResult) {
-        setError(getLastAuthError() || 'Invalid ' + role + ' credentials.');
+        setError(getLastAuthError() || 'Invalid email or password.');
         setSubmitting(false);
         return;
       }
@@ -125,8 +161,7 @@ export default function LoginPage() {
             REMEMBER_KEY,
             JSON.stringify({
               email: trimmedEmail,
-              orgId: orgId ? Number(orgId) : null,
-              role,
+              orgId: target.actor === 'Patient' ? organizationId : null,
             }),
           );
         } else {
@@ -136,18 +171,65 @@ export default function LoginPage() {
         /* storage unavailable; login still succeeded */
       }
 
-      navigate(getActorHome(role));
+      navigate(getActorHome(authResult.actor));
     } catch (err) {
       setError(err?.status === 0 ? err.message : 'Something went wrong. Please try again.');
       setSubmitting(false);
     }
-  }, [email, password, role, orgId, remember, authenticate, getLastAuthError, navigate]);
+  }, [email, password, organizations, orgId, orgTouched, remember, authenticate, getLastAuthError, navigate]);
 
   function fillDemo(account) {
     setEmail(account.email);
+    setSettledEmail(account.email);
     setPassword(account.password);
     setError('');
     toast('Demo credentials copied to form', 'info');
+  }
+
+  // Demo panel: one tab per hospital with known demo users, plus Platform.
+  const demoOrgTabs = (organizations || []).filter((o) => mockAccountsByOrg[o.organization_id]);
+  const activeDemoTab =
+    demoTab ||
+    (identity?.actor === 'PLATFORM'
+      ? PLATFORM_DEMO_TAB
+      : String(
+          identity?.org?.organization_id ||
+            (demoOrgTabs.some((o) => String(o.organization_id) === selectedOrgId) ? selectedOrgId : '') ||
+            demoOrgTabs[0]?.organization_id ||
+            PLATFORM_DEMO_TAB,
+        ));
+  const demoRows =
+    activeDemoTab === PLATFORM_DEMO_TAB
+      ? [{ role: 'Platform', account: PLATFORM_DEMO_ACCOUNT }]
+      : DEMO_ROLE_ORDER.flatMap((role) =>
+          ((mockAccountsByOrg[activeDemoTab] || {})[role] || []).map((account) => ({ role, account })),
+        );
+
+  let portalChip;
+  if (!identity) {
+    portalChip = (
+      <span className="portal-chip portal-chip-idle">
+        Staff: name.role@your-hospital domain · Patients: your personal email
+      </span>
+    );
+  } else if (identity.actor === 'PLATFORM') {
+    portalChip = (
+      <span className="portal-chip">
+        Signing in to <strong>{PORTAL_LABEL.PLATFORM}</strong>
+      </span>
+    );
+  } else if (isPatient) {
+    portalChip = (
+      <span className="portal-chip">
+        Signing in to the <strong>{PORTAL_LABEL.Patient}</strong>. Choose your hospital below.
+      </span>
+    );
+  } else {
+    portalChip = (
+      <span className="portal-chip">
+        Signing in to <strong>{identity.org.name}</strong> · {PORTAL_LABEL[identity.actor]}
+      </span>
+    );
   }
 
   return (
@@ -174,23 +256,7 @@ export default function LoginPage() {
         <section className="login-card">
           <div className="card-head">
             <h1 className="card-title">Sign In</h1>
-            <p className="card-subtitle">Select your role to access your portal</p>
-          </div>
-
-          <div className="role-tabs">
-            {ROLES.map((r) => (
-              <button
-                key={r}
-                className={'role-tab' + (r === role ? ' active' : '')}
-                type="button"
-                onClick={() => {
-                  setRole(r);
-                  setError('');
-                }}
-              >
-                {r}
-              </button>
-            ))}
+            <p className="card-subtitle">One sign-in for patients, hospital staff and platform admins</p>
           </div>
 
           <form
@@ -206,42 +272,55 @@ export default function LoginPage() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="organization">Hospital</label>
-              <select
-                id="organization"
-                value={orgId}
-                onChange={(e) => setOrgId(e.target.value)}
-                disabled={organizations === null}
-              >
-                {organizations === null ? (
-                  <option value="">Loading hospitals&hellip;</option>
-                ) : orgLoadFailed ? (
-                  <option value="">Could not load hospitals {'—'} refresh to retry</option>
-                ) : (
-                  organizations.map((org) => (
-                    <option key={org.organization_id} value={String(org.organization_id)}>
-                      {org.name}
-                    </option>
-                  ))
-                )}
-              </select>
-              <span className="field-hint">
-                Patients: choose your registered hospital.{' '}
-                <Link to="/marketplace/marketplace-page.html">Browse all</Link>.
-              </span>
-            </div>
-
-            <div className="form-group">
               <label htmlFor="email">Email Address</label>
               <input
                 id="email"
                 type="email"
                 placeholder="Enter your email"
+                autoComplete="username"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setDemoTab(null);
+                }}
+                onBlur={() => setSettledEmail(email)}
               />
+              <div className="portal-chip-row" aria-live="polite">
+                {portalChip}
+              </div>
             </div>
+
+            {isPatient && (
+              <div className="form-group">
+                <label htmlFor="organization">Hospital</label>
+                <select
+                  id="organization"
+                  value={selectedOrgId}
+                  onChange={(e) => {
+                    setOrgId(e.target.value);
+                    setOrgTouched(true);
+                  }}
+                  disabled={organizations === null}
+                >
+                  {organizations === null ? (
+                    <option value="">Loading hospitals&hellip;</option>
+                  ) : orgLoadFailed ? (
+                    <option value="">Could not load hospitals {'—'} refresh to retry</option>
+                  ) : (
+                    organizations.map((org) => (
+                      <option key={org.organization_id} value={String(org.organization_id)}>
+                        {org.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <span className="field-hint">
+                  Choose the hospital you registered with.{' '}
+                  <Link to="/marketplace/marketplace-page.html">Browse all</Link>.
+                </span>
+              </div>
+            )}
 
             <div className="form-group">
               <label htmlFor="password">Password</label>
@@ -249,6 +328,7 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 placeholder="Enter your password"
+                autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -285,44 +365,47 @@ export default function LoginPage() {
             <div className="demo-credential-copy">
               Click any account below to autofill demo credentials:
             </div>
-            <div id="login-credential-helper" className="demo-credential-list md-fade-switch">
-              {demoAccounts.length === 0 ? (
-                <div
-                  style={{
-                    padding: '10px 12px',
-                    fontSize: 12,
-                    color: 'var(--md-on-surface-variant)',
-                    textAlign: 'center',
-                    background: 'var(--md-surface)',
-                    borderRadius: 'var(--radius-sm)',
-                    borderLeft: '3px solid var(--md-outline-variant)',
-                  }}
+            <div className="demo-tabs" role="tablist">
+              {demoOrgTabs.map((org) => (
+                <button
+                  key={org.organization_id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeDemoTab === String(org.organization_id)}
+                  className={'demo-tab' + (activeDemoTab === String(org.organization_id) ? ' active' : '')}
+                  onClick={() => setDemoTab(String(org.organization_id))}
                 >
-                  No pre-configured demo users for this hospital. Please sign in with your
-                  registered account.
+                  {org.name}
+                </button>
+              ))}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeDemoTab === PLATFORM_DEMO_TAB}
+                className={'demo-tab' + (activeDemoTab === PLATFORM_DEMO_TAB ? ' active' : '')}
+                onClick={() => setDemoTab(PLATFORM_DEMO_TAB)}
+              >
+                Platform
+              </button>
+            </div>
+            <div id="login-credential-helper" className="demo-credential-list md-fade-switch">
+              {demoRows.map(({ role, account }) => (
+                <div
+                  key={account.email}
+                  className="demo-credential-row"
+                  style={{ cursor: 'pointer' }}
+                  title="Click to fill credentials"
+                  onClick={() => fillDemo(account)}
+                >
+                  <strong>
+                    <span className="demo-role-badge">{role}</span> {account.displayName}
+                  </strong>
+                  <span>{account.email}</span>
+                  <code>{account.password}</code>
                 </div>
-              ) : (
-                demoAccounts.map((account) => (
-                  <div
-                    key={account.email}
-                    className="demo-credential-row"
-                    style={{ cursor: 'pointer' }}
-                    title="Click to fill credentials"
-                    onClick={() => fillDemo(account)}
-                  >
-                    <strong>{account.displayName}</strong>
-                    <span>{account.email}</span>
-                    <code>{account.password}</code>
-                  </div>
-                ))
-              )}
+              ))}
             </div>
           </div>
-
-          <p className="field-hint" style={{ textAlign: 'center', marginTop: 14 }}>
-            Federico platform staff?{' '}
-            <Link to="/platform/platform-login.html">Open the Platform Super User console</Link>
-          </p>
         </section>
       </main>
     </>

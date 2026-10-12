@@ -41,9 +41,12 @@ export default function RequireModule({ module: moduleName, children }) {
   return children;
 }
 
-/** Platform Super User console has its own auth realm, separate from the actor system. */
+/**
+ * Platform Super User console has its own auth realm, separate from the actor
+ * system. Signing in still goes through the one unified login page.
+ */
 export function RequirePlatformUser({ children }) {
   const { isPlatformUser } = useSession();
-  if (!isPlatformUser) return <Navigate to="/platform/platform-login.html" replace />;
+  if (!isPlatformUser) return <Navigate to={LOGIN_PATH} replace />;
   return children;
 }

@@ -11,7 +11,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Session bearer token obtained from /auth/login or /platform/auth/login"
+        "description": "Session bearer token obtained from /auth/login/{actor}, /auth/login or /platform/auth/login"
       },
       "xRoleAuth": {
         "type": "apiKey",
@@ -265,10 +265,38 @@
         "tags": [
           "Auth"
         ],
-        "summary": "User login authentication",
+        "summary": "User login authentication (legacy, any role)",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/auth/login/{actor}": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Unified-login portal endpoint (hom, pre, fa, admin, patient); 403 for an account of another role",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actor",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1938,6 +1966,60 @@
           "Platform"
         ],
         "summary": "Delete (soft) an organization",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/platform/organizations/{id}/email-domain": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Staff email domain and how many logins a change would rename",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Change the staff email domain; renames staff/admin logins and signs them out",
         "security": [
           {
             "bearerAuth": []

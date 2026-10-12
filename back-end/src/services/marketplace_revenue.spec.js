@@ -36,6 +36,7 @@ describe('Platform Revenue Analytics & Marketplace Self-Service Onboarding', () 
       plan_id: 1,
       modules: ['APPOINTMENTS', 'ADMISSIONS', 'INVENTORY', 'BILLING', 'INSURANCE'],
       admin_name: 'Dr. Vikram Rao',
+      email_domain: 'globalhealth.com',
       admin_email: 'vikram.admin@globalhealth.com',
       admin_password: 'Password@123',
       payment_reference: 'PAY_TEST_12345',
@@ -60,7 +61,7 @@ describe('Platform Revenue Analytics & Marketplace Self-Service Onboarding', () 
   it('should calculate live platform MRR/ARR from per-service usage for Platform Super User', async () => {
     const loginRes = await request(app)
       .post('/platform/auth/login')
-      .send({ email: 'platform@federico.com', password: 'Federico@Platform123' });
+      .send({ email: 'super.platform@federico.com', password: 'Federico@Platform123' });
 
     expect(loginRes.status).toBe(200);
     const token = loginRes.body.token;

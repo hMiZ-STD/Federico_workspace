@@ -27,7 +27,8 @@ describe('services/provisioning.service', () => {
         address: 'Test Address',
       },
       admin_name: 'Prov Admin',
-      admin_email: 'prov-admin@provtest.example',
+      email_domain: 'provtest.example',
+      admin_email: 'prov.admin@provtest.example',
       admin_password: 'ProvAdmin@123',
       plan_id: plan.plan_id,
     });
@@ -117,7 +118,8 @@ describe('services/provisioning.service', () => {
     const result = provisioningService.provision({
       name: 'Provisioning Test Hospital 2',
       admin_name: 'Prov Admin 2',
-      admin_email: 'prov-admin-2@provtest.example',
+      email_domain: 'provtest2.example',
+      admin_email: 'prov2.admin@provtest2.example',
       admin_password: 'ProvAdmin@123',
       plan_id: plan.plan_id,
       modules: ['APPOINTMENTS'],

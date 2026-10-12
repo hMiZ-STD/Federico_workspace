@@ -14,6 +14,8 @@
  *    code has no flag row yet.
  *  - backfillDoctorIds(): fills doctor_id on appointments restored from an
  *    older db.json that only recorded the availability slot.
+ *  - backfillEmailDomains(): gives an org restored from an older db.json the
+ *    email_domain the unified login page maps staff emails onto.
  */
 
 const rbacService = require('./services/rbac.service');
@@ -30,6 +32,11 @@ function runBootReconciliation() {
     organizationService.syncOrganizationConfig();
   } catch (err) {
     console.warn(`[Bootstrap] syncOrganizationConfig failed: ${err.message}`);
+  }
+  try {
+    organizationService.backfillEmailDomains();
+  } catch (err) {
+    console.warn(`[Bootstrap] backfillEmailDomains failed: ${err.message}`);
   }
   try {
     appointmentService.backfillDoctorIds();

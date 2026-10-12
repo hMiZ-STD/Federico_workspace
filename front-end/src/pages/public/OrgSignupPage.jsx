@@ -7,6 +7,13 @@ import { toast } from '../../components/feedback/feedback.js';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import orgSignupCss from '../../styles/signup/org-signup.css?inline';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import TaggedEmailInput from '../../components/forms/TaggedEmailInput.jsx';
+import {
+  suggestEmailDomain,
+  emailDomainProblem,
+  normalizeDomain,
+  buildTaggedEmail,
+} from '../../lib/emailIdentity.js';
 
 const TOTAL_STEPS = 4;
 const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
@@ -65,8 +72,13 @@ export default function OrgSignupPage() {
     address: '',
     specialties: '',
     emergency: true,
+    emailDomain: '',
+    domainEdited: false,
   });
-  const [admin, setAdmin] = useState({ name: '', email: '', password: '' });
+  // `emailName` is the part before ".admin@<domain>" (unified login convention).
+  const [admin, setAdmin] = useState({ name: '', emailName: '', password: '' });
+  // Existing hospitals, only to flag a taken email domain early; the server decides.
+  const [knownOrgs, setKnownOrgs] = useState([]);
   const [res, setRes] = useState({
     generalBeds: 30,
     icuBeds: 5,
@@ -80,6 +92,24 @@ export default function OrgSignupPage() {
 
   const setResNum = (k) => (e) =>
     setRes((p) => ({ ...p, [k]: Math.max(0, parseInt(e.target.value, 10) || 0) }));
+
+  useEffect(() => {
+    api.marketplace
+      .organizations()
+      .then((orgs) => setKnownOrgs(orgs || []))
+      .catch(() => {
+        /* the server still rejects a taken domain */
+      });
+  }, []);
+
+  // Follows the hospital name (City General Hospital → citygen.com) until edited.
+  const emailDomain = org.domainEdited
+    ? normalizeDomain(org.emailDomain)
+    : org.name.trim()
+      ? suggestEmailDomain(org.name, knownOrgs)
+      : '';
+  const domainProblem = emailDomain ? emailDomainProblem(emailDomain, knownOrgs) : null;
+  const adminEmail = buildTaggedEmail(admin.emailName, 'admin', emailDomain);
 
   useEffect(() => {
     api.platform.rates
@@ -120,11 +150,15 @@ export default function OrgSignupPage() {
       toast('Please fill in required hospital details (Name, City, Phone).', 'warn');
       return;
     }
+    if (!emailDomain || domainProblem) {
+      toast(domainProblem || 'Please choose a staff email domain.', 'warn');
+      return;
+    }
     goto(2);
   }
 
   function next3() {
-    if (!admin.name.trim() || !admin.email.trim() || !admin.password) {
+    if (!admin.name.trim() || !adminEmail || !admin.password) {
       toast('Please complete all administrator account fields.', 'warn');
       return;
     }
@@ -170,7 +204,8 @@ export default function OrgSignupPage() {
         PATIENT: { PATIENT_ADMISSIONS: res.admissions },
       },
       admin_name: admin.name.trim(),
-      admin_email: admin.email.trim(),
+      email_domain: emailDomain,
+      admin_email: adminEmail,
       admin_password: admin.password,
       payment_reference: 'PAY_FED_' + Math.random().toString(36).substring(2, 9).toUpperCase(),
     };
@@ -185,7 +220,7 @@ export default function OrgSignupPage() {
           role: 'ORG_ADMIN',
           userId: sess.user ? sess.user.user_id : null,
           displayName: sess.user ? sess.user.name : admin.name,
-          email: sess.user ? sess.user.email : admin.email,
+          email: sess.user ? sess.user.email : adminEmail,
           tenant: sess.tenant || null,
         });
       }
@@ -276,6 +311,23 @@ export default function OrgSignupPage() {
               <div className="form-group">
                 <label htmlFor="org-name">Hospital / Chain Name *</label>
                 <input type="text" id="org-name" placeholder="e.g. Fortis Healthcare Network" value={org.name} onChange={(e) => setOrg((p) => ({ ...p, name: e.target.value }))} />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="org-email-domain">Staff Email Domain *</label>
+                <input
+                  type="text"
+                  id="org-email-domain"
+                  placeholder="e.g. fortis.com"
+                  value={emailDomain}
+                  onChange={(e) => setOrg((p) => ({ ...p, emailDomain: e.target.value, domainEdited: true }))}
+                />
+                <span style={{ fontSize: 12, marginTop: 4, color: domainProblem ? 'var(--status-error, #b3261e)' : 'var(--md-on-surface-variant)' }}>
+                  {domainProblem ||
+                    'Every staff login uses this domain, e.g. name.hom@' +
+                      (emailDomain || 'yourhospital.com') +
+                      '. Suggested from your hospital name; you can change it.'}
+                </span>
               </div>
 
               <div className="form-grid-2">
@@ -444,7 +496,15 @@ export default function OrgSignupPage() {
               <div className="form-grid-2">
                 <div className="form-group">
                   <label htmlFor="admin-email">Official Admin Email *</label>
-                  <input type="email" id="admin-email" placeholder="admin@fortis.com" value={admin.email} onChange={(e) => setAdmin((p) => ({ ...p, email: e.target.value }))} />
+                  <TaggedEmailInput
+                    id="admin-email"
+                    value={admin.emailName}
+                    onChange={(v) => setAdmin((p) => ({ ...p, emailName: v }))}
+                    tag="admin"
+                    domain={emailDomain}
+                    placeholder="e.g. owner"
+                    required={false}
+                  />
                 </div>
                 <div className="form-group">
                   <label htmlFor="admin-password">Secure Password *</label>

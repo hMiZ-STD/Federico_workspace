@@ -63,20 +63,20 @@ describe('Phase 2 — real auth and actor permissions (e2e)', () => {
   it('rejects bad credentials with 401', () => {
     return request(app)
       .post('/auth/login')
-      .send({ email: 'admin@hosp.com', password: 'wrong' })
+      .send({ email: 'admin.hom@citygen.com', password: 'wrong' })
       .expect(401);
   });
 
   it('logs in each seeded actor and issues a usable session token', async () => {
     const hom = await request(app)
       .post('/auth/login')
-      .send({ email: 'admin@hosp.com', password: 'Hom@123' })
+      .send({ email: 'admin.hom@citygen.com', password: 'Hom@123' })
       .expect(200);
     if (b(hom).role !== 'HOM') throw new Error('Expected HOM role');
 
     const pre = await request(app)
       .post('/auth/login')
-      .send({ email: 'rekha.pre@hosp.com', password: 'Pre@123' })
+      .send({ email: 'rekha.pre@citygen.com', password: 'Pre@123' })
       .expect(200);
     if (b(pre).role !== 'PRE') throw new Error('Expected PRE role');
 
@@ -99,7 +99,7 @@ describe('Phase 2 — real auth and actor permissions (e2e)', () => {
   it('denies an actor writing outside their SRS responsibility (FA creating a pre-request)', async () => {
     const fa = await request(app)
       .post('/auth/login')
-      .send({ email: 'farah.fa@hosp.com', password: 'Fa@123' })
+      .send({ email: 'farah.fa@citygen.com', password: 'Fa@123' })
       .expect(200);
 
     await request(app)
@@ -166,7 +166,7 @@ describe('Phase 2 — real auth and actor permissions (e2e)', () => {
   it("blocks a patient from reading or cancelling another patient's pre-request, and from self-approving their own", async () => {
     const pre = await request(app)
       .post('/auth/login')
-      .send({ email: 'rekha.pre@hosp.com', password: 'Pre@123' })
+      .send({ email: 'rekha.pre@citygen.com', password: 'Pre@123' })
       .expect(200);
     const owned = await request(app)
       .post('/pre-requests')
@@ -213,7 +213,7 @@ describe('Phase 2 — real auth and actor permissions (e2e)', () => {
   it('lets a patient see only their own pre-requests in the list', async () => {
     const pre = await request(app)
       .post('/auth/login')
-      .send({ email: 'rekha.pre@hosp.com', password: 'Pre@123' })
+      .send({ email: 'rekha.pre@citygen.com', password: 'Pre@123' })
       .expect(200);
     await request(app)
       .post('/pre-requests')
@@ -248,8 +248,8 @@ describe('Phase 3 — pre-request state machine (e2e)', () => {
   }
 
   it('walks the full Admit lifecycle end to end with the correct actor at each step, and releases the bed on discharge', async () => {
-    const pre = await login('rekha.pre@hosp.com', 'Pre@123');
-    const hom = await login('admin@hosp.com', 'Hom@123');
+    const pre = await login('rekha.pre@citygen.com', 'Pre@123');
+    const hom = await login('admin.hom@citygen.com', 'Hom@123');
 
     const created = await request(app)
       .post('/pre-requests')
@@ -261,7 +261,7 @@ describe('Phase 3 — pre-request state machine (e2e)', () => {
       throw new Error('Expected PENDING on create');
 
     // FA has no business approving intake
-    const fa = await login('farah.fa@hosp.com', 'Fa@123');
+    const fa = await login('farah.fa@citygen.com', 'Fa@123');
     await request(app)
       .put(`/pre-requests/${id}`)
       .set('Authorization', fa)
@@ -369,7 +369,7 @@ describe('Phase 3 — pre-request state machine (e2e)', () => {
   });
 
   it('rejects an out-of-order transition (cannot discharge-request a request that was never admitted)', async () => {
-    const pre = await login('rekha.pre@hosp.com', 'Pre@123');
+    const pre = await login('rekha.pre@citygen.com', 'Pre@123');
     const created = await request(app)
       .post('/pre-requests')
       .set('Authorization', pre)
@@ -388,7 +388,7 @@ describe('Phase 3 — pre-request state machine (e2e)', () => {
   });
 
   it('lets PRE reschedule (field update) but blocks Patient from the same endpoint', async () => {
-    const pre = await login('rekha.pre@hosp.com', 'Pre@123');
+    const pre = await login('rekha.pre@citygen.com', 'Pre@123');
     const patient = await login('arjun.k@hosp.com', 'Hamiz@123');
 
     const created = await request(app)
@@ -433,7 +433,7 @@ describe('Multi-tenancy — Platform Super User, organizations, feature flags, d
     const res = await request(app)
       .post('/platform/auth/login')
       .send({
-        email: 'platform@federico.com',
+        email: 'super.platform@federico.com',
         password: 'Federico@Platform123',
       })
       .expect(200);
@@ -485,7 +485,7 @@ describe('Multi-tenancy — Platform Super User, organizations, feature flags, d
   });
 
   it('a non-platform session cannot reach /platform/* routes', async () => {
-    const hom = await login('admin@hosp.com', 'Hom@123');
+    const hom = await login('admin.hom@citygen.com', 'Hom@123');
     await request(app)
       .get('/platform/organizations')
       .set('Authorization', `Bearer ${hom.token}`)
@@ -506,7 +506,8 @@ describe('Multi-tenancy — Platform Super User, organizations, feature flags, d
       .send({
         name: 'Test Provisioning Hospital',
         admin_name: 'Test Admin',
-        admin_email: 'admin@test-provisioning.hosp.com',
+        email_domain: 'testprov.com',
+        admin_email: 'test.admin@testprov.com',
         admin_password: 'TestAdmin@123',
         plan_id: starter.plan_id,
         modules: ['APPOINTMENTS', 'ADMISSIONS'],
@@ -516,7 +517,7 @@ describe('Multi-tenancy — Platform Super User, organizations, feature flags, d
       throw new Error('Expected organization + apiKey in provisioning result');
 
     const newAdmin = await login(
-      'admin@test-provisioning.hosp.com',
+      'test.admin@testprov.com',
       'TestAdmin@123',
     );
     if (
@@ -545,8 +546,8 @@ describe('Multi-tenancy — Platform Super User, organizations, feature flags, d
   });
 
   it('cross-organization data is fully isolated between Federico General (org 1) and Apollo Hospitals (org 2)', async () => {
-    const federicoHom = await login('admin@hosp.com', 'Hom@123');
-    const apolloHom = await login('admin@apollo.hosp.com', 'Apollo@123');
+    const federicoHom = await login('admin.hom@citygen.com', 'Hom@123');
+    const apolloHom = await login('admin.hom@apollo.com', 'Apollo@123');
     if (federicoHom.tenant.organization_id === apolloHom.tenant.organization_id)
       throw new Error('Seeded demo orgs must differ');
 
@@ -579,8 +580,8 @@ describe('Multi-tenancy — Platform Super User, organizations, feature flags, d
   });
 
   it('feature flags differ per organization: Apollo (INSURANCE off) is blocked, Federico General (INSURANCE on) is not', async () => {
-    const federicoHom = await login('admin@hosp.com', 'Hom@123');
-    const apolloHom = await login('admin@apollo.hosp.com', 'Apollo@123');
+    const federicoHom = await login('admin.hom@citygen.com', 'Hom@123');
+    const apolloHom = await login('admin.hom@apollo.com', 'Apollo@123');
 
     await request(app)
       .get('/patient/insurance/all')
@@ -599,13 +600,13 @@ describe('Multi-tenancy — Platform Super User, organizations, feature flags, d
   });
 
   it('dynamic RBAC: a PRE account with no fixed billing access gets billing:read via a custom role', async () => {
-    const plainPre = await login('rekha.pre@hosp.com', 'Pre@123');
+    const plainPre = await login('rekha.pre@citygen.com', 'Pre@123');
     await request(app)
       .get('/billing/services')
       .set('Authorization', `Bearer ${plainPre.token}`)
       .expect(403);
 
-    const billingAssist = await login('billing.assist@hosp.com', 'Assist@123');
+    const billingAssist = await login('billing.assist.pre@citygen.com', 'Assist@123');
     if (billingAssist.role !== 'PRE')
       throw new Error(
         'Expected the RBAC demo account to still be a fixed PRE actor',
@@ -645,16 +646,16 @@ describe('Admin role — org-wide analytics, wardAdmin/inventoryCatalog, RBAC ow
   }
 
   it('the seeded Admin account logs in as Admin, distinct from the seeded HOM account', async () => {
-    const admin = await login('owner@hosp.com', 'Owner@123');
+    const admin = await login('owner.admin@citygen.com', 'Owner@123');
     if (admin.role !== 'Admin') throw new Error('Expected Admin role');
 
-    const hom = await login('admin@hosp.com', 'Hom@123');
+    const hom = await login('admin.hom@citygen.com', 'Hom@123');
     if (hom.role !== 'HOM') throw new Error('Expected HOM role');
   });
 
   it('Admin — not HOM — can create, resize, and delete a ward', async () => {
-    const admin = await login('owner@hosp.com', 'Owner@123');
-    const hom = await login('admin@hosp.com', 'Hom@123');
+    const admin = await login('owner.admin@citygen.com', 'Owner@123');
+    const hom = await login('admin.hom@citygen.com', 'Hom@123');
     const adminAuth = `Bearer ${admin.token}`;
     const homAuth = `Bearer ${hom.token}`;
 
@@ -694,8 +695,8 @@ describe('Admin role — org-wide analytics, wardAdmin/inventoryCatalog, RBAC ow
   });
 
   it('Admin — not HOM — can create and delete an inventory catalog item; HOM keeps stock read/update access', async () => {
-    const admin = await login('owner@hosp.com', 'Owner@123');
-    const hom = await login('admin@hosp.com', 'Hom@123');
+    const admin = await login('owner.admin@citygen.com', 'Owner@123');
+    const hom = await login('admin.hom@citygen.com', 'Hom@123');
     const adminAuth = `Bearer ${admin.token}`;
     const homAuth = `Bearer ${hom.token}`;
 
@@ -732,8 +733,8 @@ describe('Admin role — org-wide analytics, wardAdmin/inventoryCatalog, RBAC ow
   });
 
   it('RBAC/custom-role administration moved to Admin — HOM can no longer reach it', async () => {
-    const admin = await login('owner@hosp.com', 'Owner@123');
-    const hom = await login('admin@hosp.com', 'Hom@123');
+    const admin = await login('owner.admin@citygen.com', 'Owner@123');
+    const hom = await login('admin.hom@citygen.com', 'Hom@123');
 
     await request(app)
       .get('/rbac/roles')
@@ -746,7 +747,7 @@ describe('Admin role — org-wide analytics, wardAdmin/inventoryCatalog, RBAC ow
   });
 
   it("Admin gets read access to ward/inventory/billing/patient/admission for hospital-wide analytics, but no operational write access", async () => {
-    const admin = await login('owner@hosp.com', 'Owner@123');
+    const admin = await login('owner.admin@citygen.com', 'Owner@123');
     const adminAuth = `Bearer ${admin.token}`;
 
     await request(app).get('/ward').set('Authorization', adminAuth).expect(200);
@@ -771,7 +772,7 @@ describe('Session Isolation and HOM Leader Workflow (e2e)', () => {
     // 1. User A (HOM) logs in
     const userALogin = await request(app)
       .post('/auth/login')
-      .send({ email: 'admin@hosp.com', password: 'Hom@123' })
+      .send({ email: 'admin.hom@citygen.com', password: 'Hom@123' })
       .expect(200);
     const tokenA = b(userALogin).token;
     expect(tokenA).toBeTruthy();
@@ -779,7 +780,7 @@ describe('Session Isolation and HOM Leader Workflow (e2e)', () => {
     // 2. User B (FA) logs in
     const userBLogin = await request(app)
       .post('/auth/login')
-      .send({ email: 'farah.fa@hosp.com', password: 'Fa@123' })
+      .send({ email: 'farah.fa@citygen.com', password: 'Fa@123' })
       .expect(200);
     const tokenB = b(userBLogin).token;
     expect(tokenB).toBeTruthy();
@@ -827,7 +828,7 @@ describe('Session Isolation and HOM Leader Workflow (e2e)', () => {
   it('supports cookie-based session identification and cookie clearance on logout', async () => {
     const loginRes = await request(app)
       .post('/auth/login')
-      .send({ email: 'admin@hosp.com', password: 'Hom@123' })
+      .send({ email: 'admin.hom@citygen.com', password: 'Hom@123' })
       .expect(200);
 
     const cookieHeader = loginRes.headers['set-cookie'];
@@ -861,13 +862,13 @@ describe('Session Isolation and HOM Leader Workflow (e2e)', () => {
     // Login HOM and FA
     const homLogin = await request(app)
       .post('/auth/login')
-      .send({ email: 'admin@hosp.com', password: 'Hom@123' })
+      .send({ email: 'admin.hom@citygen.com', password: 'Hom@123' })
       .expect(200);
     const homAuth = `Bearer ${b(homLogin).token}`;
 
     const faLogin = await request(app)
       .post('/auth/login')
-      .send({ email: 'farah.fa@hosp.com', password: 'Fa@123' })
+      .send({ email: 'farah.fa@citygen.com', password: 'Fa@123' })
       .expect(200);
     const faAuth = `Bearer ${b(faLogin).token}`;
 
@@ -954,7 +955,7 @@ describe('File Upload & Log/Error Management (e2e)', () => {
   });
 
   it('uploads a document, stores it under uploads/documents, and serves it back', async () => {
-    const auth = await login('admin@hosp.com', 'Hom@123');
+    const auth = await login('admin.hom@citygen.com', 'Hom@123');
 
     const uploaded = await request(app)
       .post('/uploads/document')
@@ -977,7 +978,7 @@ describe('File Upload & Log/Error Management (e2e)', () => {
   });
 
   it('uploads a branding logo image via the branding field', async () => {
-    const auth = await login('admin@hosp.com', 'Hom@123');
+    const auth = await login('admin.hom@citygen.com', 'Hom@123');
     // Minimal valid 1x1 PNG.
     const pngBytes = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -998,7 +999,7 @@ describe('File Upload & Log/Error Management (e2e)', () => {
   });
 
   it('rejects a disallowed MIME type with 400', async () => {
-    const auth = await login('admin@hosp.com', 'Hom@123');
+    const auth = await login('admin.hom@citygen.com', 'Hom@123');
 
     await request(app)
       .post('/uploads/document')
@@ -1011,7 +1012,7 @@ describe('File Upload & Log/Error Management (e2e)', () => {
   });
 
   it('rejects a file over the 5MB limit with 400', async () => {
-    const auth = await login('admin@hosp.com', 'Hom@123');
+    const auth = await login('admin.hom@citygen.com', 'Hom@123');
 
     await request(app)
       .post('/uploads/document')
@@ -1024,7 +1025,7 @@ describe('File Upload & Log/Error Management (e2e)', () => {
   });
 
   it('returns 404 for a request missing the file field entirely', async () => {
-    const auth = await login('admin@hosp.com', 'Hom@123');
+    const auth = await login('admin.hom@citygen.com', 'Hom@123');
 
     await request(app)
       .get('/uploads/documents/does-not-exist.pdf')
@@ -1033,7 +1034,7 @@ describe('File Upload & Log/Error Management (e2e)', () => {
   });
 
   it('exposes log file status for the Log and Error Management endpoint', async () => {
-    const auth = await login('admin@hosp.com', 'Hom@123');
+    const auth = await login('admin.hom@citygen.com', 'Hom@123');
 
     const status = await request(app)
       .get('/uploads/system/logs-status')

@@ -13,6 +13,7 @@ export const ACTOR_HOME = {
   FA: '/FA/fa-dashboard.html',
   PRE: '/PRE/pages/PRE.html',
   Patient: '/Patient/patient-dashboard.html',
+  PLATFORM: '/platform/platform-dashboard.html',
 };
 
 export const LOGIN_PATH = '/login/login-page.html';

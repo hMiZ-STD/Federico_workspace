@@ -5,6 +5,14 @@ const { maxId } = require('../utils/maxId');
 const { MODULE_CODES, BACKFILL_GRANT_MODULES } = require('../utils/tenant');
 const serviceCatalog = require('../config/serviceCatalog');
 const resourceCatalog = require('../config/resourceCatalog');
+const { destroySessionsForUser } = require('../store/sessionStore');
+const {
+  parseEmail,
+  normalizeDomain,
+  isValidDomainFormat,
+  isReservedDomain,
+  suggestEmailDomainBase,
+} = require('../utils/emailIdentity');
 
 function slugify(name) {
   const base = String(name || '')
@@ -17,6 +25,55 @@ function slugify(name) {
     slug = `${base}-${++suffix}`;
   }
   return slug;
+}
+
+function findByEmailDomain(domain) {
+  const normalized = normalizeDomain(domain);
+  if (!normalized) return null;
+  return (
+    dataStore.organizations.find((o) => o.email_domain === normalized) || null
+  );
+}
+
+/**
+ * Unique email domain suggested from a hospital name ("City General
+ * Hospital" → "citygen.com"; "citygen2.com" if that is taken). Same
+ * uniqueness loop as slugify().
+ */
+function suggestEmailDomain(name) {
+  const base = suggestEmailDomainBase(name);
+  const [label, ...rest] = base.split('.');
+  const tld = rest.join('.');
+  let domain = base;
+  let suffix = 1;
+  while (findByEmailDomain(domain) || isReservedDomain(domain)) {
+    domain = `${label}${++suffix}.${tld}`;
+  }
+  return domain;
+}
+
+/**
+ * The normalized domain, or { error } — INVALID_EMAIL_DOMAIN for a bad or
+ * reserved (public mailbox / platform) domain, EMAIL_DOMAIN_TAKEN when another
+ * organization already owns it. `exceptOrganizationId` lets an org keep its own.
+ */
+function validateEmailDomain(domain, exceptOrganizationId) {
+  const normalized = normalizeDomain(domain);
+  if (!isValidDomainFormat(normalized) || isReservedDomain(normalized)) {
+    return { error: 'INVALID_EMAIL_DOMAIN' };
+  }
+  const owner = findByEmailDomain(normalized);
+  if (owner && owner.organization_id !== Number(exceptOrganizationId)) {
+    return { error: 'EMAIL_DOMAIN_TAKEN' };
+  }
+  return { domain: normalized };
+}
+
+/** Boot-time: orgs saved before email domains existed get a suggested one. */
+function backfillEmailDomains() {
+  dataStore.organizations.forEach((o) => {
+    if (!o.email_domain) o.email_domain = suggestEmailDomain(o.name);
+  });
 }
 
 function findAll() {
@@ -33,6 +90,10 @@ function create(payload) {
       maxId(dataStore.organizations, 'organization_id') + 1 || 1,
     name: payload.name,
     slug: slugify(payload.name),
+    // Callers validate a supplied domain first (validateEmailDomain).
+    email_domain: payload.email_domain
+      ? normalizeDomain(payload.email_domain)
+      : suggestEmailDomain(payload.name),
     status: 'ACTIVE',
     branding: payload.branding || {
       initial: (payload.name || '?').trim().charAt(0).toUpperCase(),
@@ -62,6 +123,46 @@ function setStatus(id, status) {
 /** Soft delete — preserves historical business data instead of leaving dangling foreign keys (see organization.service header note). */
 function remove(id) {
   return update(id, { status: 'DELETED' });
+}
+
+/**
+ * Moves an organization to a new email domain. Every staff/admin login
+ * (everyone but patients, who use personal emails) is renamed from
+ * name.tag@old to name.tag@new and signed out so they log in again with the
+ * new address. Returns { organization, renamedUsers } or { error }.
+ */
+function changeEmailDomain(id, newDomain) {
+  const org = findById(id);
+  if (!org) return { error: 'NOT_FOUND' };
+  const checked = validateEmailDomain(newDomain, org.organization_id);
+  if (checked.error) return checked;
+
+  const oldDomain = org.email_domain;
+  const renamedUsers = [];
+  dataStore.users.forEach((u) => {
+    if (u.organization_id !== org.organization_id || u.role_id === 2) return;
+    const parsed = parseEmail(u.email);
+    if (!parsed || parsed.domain !== oldDomain) return;
+    const local = String(u.email).trim().split('@')[0];
+    u.email = `${local}@${checked.domain}`;
+    destroySessionsForUser(u.user_id);
+    renamedUsers.push({ user_id: u.user_id, email: u.email });
+  });
+
+  update(org.organization_id, { email_domain: checked.domain });
+  return { organization: org, previousDomain: oldDomain, renamedUsers };
+}
+
+/** Staff/admin logins that a domain change would rename (for the confirm step). */
+function staffLoginCount(id) {
+  const org = findById(id);
+  if (!org) return 0;
+  return dataStore.users.filter((u) => {
+    if (u.organization_id !== org.organization_id || u.role_id === 2)
+      return false;
+    const parsed = parseEmail(u.email);
+    return Boolean(parsed && parsed.domain === org.email_domain);
+  }).length;
 }
 
 // ---- Hospitals (branches) ----
@@ -384,6 +485,7 @@ function marketplaceListing() {
       organization_id: o.organization_id,
       name: o.name,
       slug: o.slug,
+      email_domain: o.email_domain || null,
       branding: o.branding,
       branches: hospitalsFor(o.organization_id).map((h) => ({
         hospital_id: h.hospital_id,
@@ -399,6 +501,12 @@ function marketplaceListing() {
 module.exports = {
   findAll,
   findById,
+  findByEmailDomain,
+  suggestEmailDomain,
+  validateEmailDomain,
+  changeEmailDomain,
+  staffLoginCount,
+  backfillEmailDomains,
   create,
   update,
   setStatus,

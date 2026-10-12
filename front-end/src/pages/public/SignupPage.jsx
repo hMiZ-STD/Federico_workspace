@@ -9,13 +9,15 @@ import { toast } from '../../components/feedback/feedback.js';
 import { usePageStyles } from '../../hooks/usePageStyles.js';
 import signupPageCss from '../../styles/signup/signup-page.css?inline';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { isReservedStaffEmail } from '../../lib/emailIdentity.js';
 
 /**
  * Ported from signup/signup-page.html + signup-page.js.
  *
  * Validation order is load-bearing - the user sees whichever message fires
  * first - so the nine checks run in exactly the original sequence with their
- * original wording. showToast's 'warn' -> 'warning' mapping is kept too; note
+ * original wording. The one addition (unified login) sits right after the
+ * email-format check: staff-shaped addresses on a hospital domain are refused. showToast's 'warn' -> 'warning' mapping is kept too; note
  * that org-signup.js does NOT do this mapping (defect D9).
  */
 const showToast = (message, type = 'info') => toast(message, type === 'warn' ? 'warning' : type);
@@ -103,6 +105,14 @@ export default function SignupPage() {
     if (Number.isNaN(dobDate.getTime())) return showToast('Please enter a valid date of birth.', 'warn');
     if (dobDate > today) return showToast('Date of Birth cannot be in the future.', 'warn');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast('Please enter a valid email address.', 'warn');
+    // name.hom@<hospital domain> and the like open a staff portal on the
+    // unified login page, so patients can't register them.
+    if (isReservedStaffEmail(email, organizations)) {
+      return showToast(
+        'This address format is reserved for hospital staff. Please use your personal email.',
+        'warn',
+      );
+    }
     if (!/^\+?[0-9\s-]{8,15}$/.test(phone)) return showToast('Please enter a valid phone number.', 'warn');
     if (f.password.length < 6) return showToast('Password must be at least 6 characters long.', 'warn');
     if (f.password !== f.confirmPassword) return showToast('Passwords do not match. Please try again.', 'warn');

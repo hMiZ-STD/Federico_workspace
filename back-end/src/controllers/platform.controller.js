@@ -64,10 +64,11 @@ function findOrganization(req, res) {
 function createOrganization(req, res) {
   const result = provisioningService.provision(req.body);
   if (result.error) {
-    return res.status(400).json({
-      message: 'Unknown subscription plan',
-      error: 'Bad Request',
-      statusCode: 400,
+    const [status, message] = provisioningService.errorResponseFor(result);
+    return res.status(status).json({
+      message,
+      error: status === 409 ? 'Conflict' : 'Bad Request',
+      statusCode: status,
     });
   }
   logger.log(
@@ -80,6 +81,63 @@ function createOrganization(req, res) {
     `Provisioned "${result.organization.name}"`,
   );
   sendResult(res, result, 201);
+}
+
+/**
+ * Moves an organization to a new email domain, renaming every staff/admin
+ * login on the old one. Platform-only: a Hospital Admin changing it could
+ * lock their own staff out.
+ */
+function changeEmailDomain(req, res) {
+  const result = organizationService.changeEmailDomain(
+    +req.params.id,
+    req.body.email_domain,
+  );
+  if (result.error) {
+    const [status, message] = provisioningService.errorResponseFor(result);
+    return res.status(status).json({
+      message,
+      error:
+        status === 409
+          ? 'Conflict'
+          : status === 404
+            ? 'Not Found'
+            : 'Bad Request',
+      statusCode: status,
+    });
+  }
+  const { organization, previousDomain, renamedUsers } = result;
+  logger.log(
+    `✉️  EMAIL DOMAIN  organization_id=${organization.organization_id}  ${previousDomain} → ${organization.email_domain}  renamed=${renamedUsers.length}`,
+  );
+  platformActivityService.log(
+    req.session.userId,
+    'CHANGE_EMAIL_DOMAIN',
+    organization.organization_id,
+    `Changed "${organization.name}" email domain from ${previousDomain} to ${organization.email_domain} (${renamedUsers.length} staff logins renamed)`,
+  );
+  sendResult(res, result, 200);
+}
+
+function emailDomainImpact(req, res) {
+  const organization = organizationService.findById(+req.params.id);
+  if (!organization) {
+    return res.status(404).json({
+      message: 'Organization not found',
+      error: 'Not Found',
+      statusCode: 404,
+    });
+  }
+  sendResult(
+    res,
+    {
+      email_domain: organization.email_domain || null,
+      staff_logins: organizationService.staffLoginCount(
+        organization.organization_id,
+      ),
+    },
+    200,
+  );
 }
 
 function suspendOrganization(req, res) {
@@ -150,6 +208,7 @@ function platformUsage(req, res) {
     return {
       organization_id: o.organization_id,
       name: o.name,
+      email_domain: o.email_domain || null,
       status: o.status,
       ...usageData,
     };
@@ -458,6 +517,8 @@ module.exports = {
   findAllOrganizations,
   findOrganization,
   createOrganization,
+  changeEmailDomain,
+  emailDomainImpact,
   suspendOrganization,
   activateOrganization,
   deleteOrganization,

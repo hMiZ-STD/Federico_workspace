@@ -35,7 +35,7 @@ actors:
   platform_super_user:
     code: "PLATFORM_SUPER_USER"
     role_id: 0
-    portal: "/platform/platform-login.html"
+    portal: "/platform/platform-dashboard.html"
     description: "SaaS Platform Owner overseeing all tenant organizations, subscription plans, module flags, and platform-wide metrics."
     responsibilities:
       - "Provision, activate, and suspend hospital organizations"
@@ -195,6 +195,10 @@ api_endpoints:
       description: "System uptime, timestamp, and health status."
 
   auth:
+    - method: "POST"
+      path: "/auth/login/:actor"
+      auth: "Public"
+      description: "Unified-login endpoint per portal (hom, pre, fa, admin, patient); rejects accounts of any other role (403)."
     - method: "POST"
       path: "/auth/login"
       auth: "Public"

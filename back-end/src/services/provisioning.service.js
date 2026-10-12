@@ -16,6 +16,7 @@ const {
   DEFAULT_INVENTORY_ITEMS,
 } = require('../config/defaultClinicalCatalog');
 const { MODULE_CODES } = require('../utils/tenant');
+const { parseEmail } = require('../utils/emailIdentity');
 
 /**
  * Provisioning Engine (tasks.md §6) — the one place a new tenant gets
@@ -101,16 +102,39 @@ function generateApiKey(organizationId, label) {
 }
 
 /**
- * payload: { name, contact, specialties, emergency_available, admin_name,
- *            admin_email, admin_password, plan_id, modules? }
+ * payload: { name, email_domain?, contact, specialties, emergency_available,
+ *            admin_name, admin_email, admin_password, plan_id, modules? }
  * `modules`, if omitted, defaults to the plan's included_modules.
+ * `email_domain`, if omitted, is suggested from the name. The admin's login
+ * must be <name>.admin@<email_domain> — the unified login page reads the
+ * actor from the tag and the hospital from the domain.
  */
 function provision(payload) {
   const plan = planService.findById(payload.plan_id);
   if (!plan) return { error: 'PLAN_NOT_FOUND' };
 
+  let emailDomain;
+  if (payload.email_domain) {
+    const checked = organizationService.validateEmailDomain(
+      payload.email_domain,
+    );
+    if (checked.error) return checked;
+    emailDomain = checked.domain;
+  } else {
+    emailDomain = organizationService.suggestEmailDomain(payload.name);
+  }
+  const adminEmail = parseEmail(payload.admin_email);
+  if (
+    !adminEmail ||
+    adminEmail.actor !== 'Admin' ||
+    adminEmail.domain !== emailDomain
+  ) {
+    return { error: 'ADMIN_EMAIL_MISMATCH', email_domain: emailDomain };
+  }
+
   const organization = organizationService.create({
     name: payload.name,
+    email_domain: emailDomain,
     contact: payload.contact,
     specialties: payload.specialties,
     emergency_available: payload.emergency_available,
@@ -254,8 +278,37 @@ function provision(payload) {
   };
 }
 
+/**
+ * [status, message] for each { error } provision() and
+ * organizationService.changeEmailDomain() can return, shared by the platform
+ * and marketplace controllers.
+ */
+function errorResponseFor(result) {
+  switch (result.error) {
+    case 'PLAN_NOT_FOUND':
+      return [400, 'Unknown subscription plan'];
+    case 'INVALID_EMAIL_DOMAIN':
+      return [
+        400,
+        'Email domain must look like yourhospital.com and cannot be a public mail provider',
+      ];
+    case 'EMAIL_DOMAIN_TAKEN':
+      return [409, 'That email domain is already used by another hospital'];
+    case 'ADMIN_EMAIL_MISMATCH':
+      return [
+        400,
+        `Admin email must look like name.admin@${result.email_domain || 'yourhospital.com'}`,
+      ];
+    case 'NOT_FOUND':
+      return [404, 'Organization not found'];
+    default:
+      return [400, result.error || 'Bad Request'];
+  }
+}
+
 module.exports = {
   provision,
+  errorResponseFor,
   generateApiKey,
   logStep,
   seedDefaultClinicalBaseline,

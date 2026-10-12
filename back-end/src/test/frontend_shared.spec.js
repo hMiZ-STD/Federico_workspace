@@ -35,6 +35,7 @@ describe('Frontend Shared Utilities', () => {
     window.Formatters = loadEsmModule(`${LIB}/formatters.js`);
     window.Sanitizer = loadEsmModule(`${LIB}/sanitizer.js`);
     window.InsuranceCalc = loadEsmModule(`${LIB}/insurance.js`);
+    window.EmailIdentity = loadEsmModule(`${LIB}/emailIdentity.js`);
   });
 
   describe('Formatters', () => {
@@ -81,6 +82,110 @@ describe('Frontend Shared Utilities', () => {
       expect(res.isValid).toBe(true);
       expect(res.coveredAmount).toBe(4000); // 80% of 5000
       expect(res.patientShare).toBe(1000); // 20% of 5000
+    });
+  });
+  describe('EmailIdentity (unified login)', () => {
+    const orgs = [
+      {
+        organization_id: 1,
+        name: 'City General Hospital',
+        email_domain: 'citygen.com',
+      },
+      {
+        organization_id: 2,
+        name: 'Apollo Hospitals',
+        email_domain: 'apollo.com',
+      },
+    ];
+
+    it('routes tagged emails on a hospital domain to that hospital portal', () => {
+      const r = window.EmailIdentity.resolveLoginIdentity(
+        'rekha.pre@citygen.com',
+        orgs,
+      );
+      expect(r.actor).toBe('PRE');
+      expect(r.org.organization_id).toBe(1);
+      expect(
+        window.EmailIdentity.resolveLoginIdentity('Admin.HOM@Apollo.com', orgs)
+          .actor,
+      ).toBe('HOM');
+      expect(
+        window.EmailIdentity.resolveLoginIdentity('farah.fa@citygen.com', orgs)
+          .actor,
+      ).toBe('FA');
+      expect(
+        window.EmailIdentity.resolveLoginIdentity(
+          'owner.admin@citygen.com',
+          orgs,
+        ).actor,
+      ).toBe('Admin');
+      expect(
+        window.EmailIdentity.resolveLoginIdentity(
+          'billing.assist.pre@citygen.com',
+          orgs,
+        ).actor,
+      ).toBe('PRE');
+    });
+
+    it('routes the platform domain to the platform console', () => {
+      expect(
+        window.EmailIdentity.resolveLoginIdentity(
+          'super.platform@federico.com',
+          orgs,
+        ).actor,
+      ).toBe('PLATFORM');
+    });
+
+    it('treats everything else as a patient', () => {
+      const R = (e) => window.EmailIdentity.resolveLoginIdentity(e, orgs);
+      expect(R('arjun.k@hosp.com').actor).toBe('Patient');
+      expect(R('mohammed.fa@gmail.com').actor).toBe('Patient'); // tag-like, but not a hospital domain
+      expect(R('x@pre.com').actor).toBe('Patient');
+      expect(R('rekha.pre@citgen.com').actor).toBe('Patient'); // mistyped domain
+      expect(R('john@citygen.com')).toMatchObject({
+        actor: 'Patient',
+        org: { organization_id: 1 },
+      });
+      expect(R('not-an-email')).toBeNull();
+    });
+
+    it('flags only staff-shaped addresses as reserved for patient signup', () => {
+      expect(
+        window.EmailIdentity.isReservedStaffEmail('a.pre@citygen.com', orgs),
+      ).toBe(true);
+      expect(
+        window.EmailIdentity.isReservedStaffEmail('a.pre@gmail.com', orgs),
+      ).toBe(false);
+      expect(
+        window.EmailIdentity.isReservedStaffEmail('a@citygen.com', orgs),
+      ).toBe(false);
+    });
+
+    it('suggests a free domain from the hospital name and validates domains', () => {
+      const { suggestEmailDomain, emailDomainProblem } = window.EmailIdentity;
+      expect(suggestEmailDomain('City General Hospital', [])).toBe(
+        'citygen.com',
+      );
+      expect(suggestEmailDomain('City General Hospital', orgs)).toBe(
+        'citygen2.com',
+      );
+      expect(suggestEmailDomain('Sri Ramachandra Medical Centre', orgs)).toBe(
+        'sriram.com',
+      );
+      expect(emailDomainProblem('apollo.com', orgs)).toMatch(/Apollo/);
+      expect(emailDomainProblem('apollo.com', orgs, 2)).toBeNull();
+      expect(emailDomainProblem('gmail.com', orgs)).toMatch(/Public/);
+      expect(emailDomainProblem('nodot', orgs)).toMatch(/yourhospital/);
+      expect(emailDomainProblem('fortis.com', orgs)).toBeNull();
+    });
+
+    it('builds name.tag@domain logins', () => {
+      expect(
+        window.EmailIdentity.buildTaggedEmail('Rekha', 'pre', 'citygen.com'),
+      ).toBe('rekha.pre@citygen.com');
+      expect(
+        window.EmailIdentity.buildTaggedEmail('', 'pre', 'citygen.com'),
+      ).toBeNull();
     });
   });
 });

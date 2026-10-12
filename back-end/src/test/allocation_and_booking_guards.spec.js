@@ -264,6 +264,7 @@ describe('Allocation, booking and billing guards', () => {
       const { organization, hospital } = provisioningService.provision({
         name: 'Guards Test Clinic',
         admin_name: 'Guard Admin',
+        email_domain: 'guards.example',
         admin_email: 'guard.admin@guards.example',
         admin_password: 'Guard@12345',
         plan_id: 1,

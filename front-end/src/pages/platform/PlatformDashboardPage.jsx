@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/index.js';
 import { useSession } from '../../auth/useSession.js';
+import { LOGIN_PATH } from '../../auth/actorHome.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { toast } from '../../components/feedback/feedback.js';
 import { inr, statusChipClass } from './platformHelpers.js';
@@ -174,7 +175,12 @@ function OrganizationsTab({ orgs, onOpenOrg, onToggleStatus }) {
                 const isSuspended = org.status === 'SUSPENDED';
                 return (
                   <tr key={org.organization_id}>
-                    <td><strong>{org.name}</strong></td>
+                    <td>
+                      <strong>{org.name}</strong>
+                      {org.email_domain && (
+                        <div style={{ fontSize: 11, opacity: 0.7 }}>@{org.email_domain}</div>
+                      )}
+                    </td>
                     <td><span className={'md-chip ' + statusChipClass(org.status)}>{org.status}</span></td>
                     <td><strong>{org.subscription ? inr(org.subscription.price_monthly) : '—'}</strong></td>
                     <td>{org.hospitals}</td>
@@ -415,7 +421,7 @@ export default function PlatformDashboardPage() {
             onClick={async () => {
               await api.platform.auth.logout();
               await logout();
-              navigate('/platform/platform-login.html');
+              navigate(LOGIN_PATH);
             }}
           >
             Log out
@@ -461,10 +467,16 @@ export default function PlatformDashboardPage() {
 
       <ProvisionDialog
         open={provisionOpen}
+        organizations={orgs}
         onClose={() => setProvisionOpen(false)}
         onProvisioned={loadUsage}
       />
-      <OrgDetailDialog org={detailOrg} onClose={() => setDetailOrgId(null)} />
+      <OrgDetailDialog
+        org={detailOrg}
+        organizations={orgs}
+        onClose={() => setDetailOrgId(null)}
+        onChanged={loadUsage}
+      />
     </>
   );
 }
